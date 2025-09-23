@@ -20,3 +20,16 @@ make
 # or with explicit filename
 ./coherence Dragon ./benchmarks/bodytrack_0.data 4096 2 32 --json
 ```
+
+Testing:
+mkdir -p ../traces
+for z in _\_four.zip; do
+echo "Extracting $z..."
+  unzip -jo "$z" '_.data' -x "\_\_MACOSX/\*" -d ../traces
+done
+
+make
+
+cd scripts
+bash run_part1.sh
+bash sweep_part1.sh
