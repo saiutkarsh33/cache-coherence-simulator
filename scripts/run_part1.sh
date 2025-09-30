@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # --- config you can tweak ---
-BIN="../part1/coherence"          # path to your simulator binary
-TRACES="../traces"         # folder containing *_0.data
+BIN="./coherence"          # path to your simulator binary
+TRACES="./traces"         # folder containing *_0.data
 CACHE_SIZE=4096            # bytes
 ASSOC=2
 BLOCK=32

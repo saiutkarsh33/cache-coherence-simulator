@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BIN="../part1/coherence" 
-TRACES="../traces"
+BIN="./coherence" 
+TRACES="./traces"
 PROTOCOL="MESI"
 OUTDIR="./out_sweep"
 
