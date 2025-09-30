@@ -16,7 +16,13 @@ make build
 
 2. Run the cache coherence simulator.
 
-The program takes the input file name and cache configurations as arguments. The command line should be `coherence "protocol" "input_file" "cache_size" "associativity" "block_size"`.
+The program takes the input file name and cache configurations as arguments.
+
+Usage:
+
+```bash
+./coherence <protocol: MESI|Dragon> <input_file> <cache_size> <associativity> <block_size> [--json]
+```
 
 - "protocol" is either MESI or Dragon
 - "input_file" is the benchmark name (name of the input file)
@@ -27,7 +33,7 @@ The program takes the input file name and cache configurations as arguments. The
 ```bash
 # Run (Part 1 uses only the *_0.data trace file)
 # Example: 4 KiB cache, 2-way, 32B blocks (defaults suggested by the spec)
-./coherence MESI ./traces/bodytrack_0.data 4096 2 32
+./coherence MESI bodytrack 4096 2 32
 
 # or with explicit filename
 ./coherence Dragon ./traces/bodytrack_0.data 4096 2 32 --json

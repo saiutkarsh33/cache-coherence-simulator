@@ -40,7 +40,7 @@ inline std::string resolve_part1_trace_path(const std::string &input)
 {
     if (file_exists(input))
         return input;
-    std::string alt = input + "_0.data";
+    std::string alt = "./traces/" + input + "_0.data";
     if (file_exists(alt))
         return alt;
     std::cerr << "Could not find trace file: '" << input << "' or '" << alt << "'\n";
