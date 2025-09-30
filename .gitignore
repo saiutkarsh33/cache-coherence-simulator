@@ -1,6 +1,8 @@
 /benchmarks/*.data
 coherence
-/traces
+/traces/blackscholes_*
+/traces/bodytrack_*
+/traces/fluidanimate_*
 /out
 /out_sweep
 .vscode
