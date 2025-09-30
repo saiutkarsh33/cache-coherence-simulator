@@ -32,6 +32,7 @@ struct CoreStats
     u64 shared_accesses = 0;
 };
 
+// simulate_single_core just simulates the cache for part 1.
 static void simulate_single_core(const std::string &trace_path,
                                  int cache_size, int assoc, int block_size,
                                  bool json_output)
@@ -133,10 +134,10 @@ static void simulate_single_core(const std::string &trace_path,
 
 int main(int argc, char *argv[])
 {
-    if (argc < 6)
+    if (argc < 3)
     {
         std::cerr << "Usage: " << argv[0]
-                  << " <protocol: MESI|Dragon> <input_file> <cache_size> <associativity> <block_size> [--json]\n";
+                  << " <protocol: MESI|Dragon> <input_file> [<cache_size> <associativity> <block_size>] [--json]\n";
         return 2;
     }
 
@@ -146,10 +147,15 @@ int main(int argc, char *argv[])
         std::cerr << "Protocol must be MESI or Dragon.\n";
         return 2;
     }
+
+    // File inputs
     std::string input = argv[2];
-    int cache_size = std::stoi(argv[3]);
-    int assoc = std::stoi(argv[4]);
-    int block_size = std::stoi(argv[5]);
+    std::string trace_path = resolve_part1_trace_path(input);
+
+    // Other arguments
+    int cache_size = argc < 4 ? DEFAULT_CACHE_SIZE : std::stoi(argv[3]);
+    int assoc = argc < 5 ? DEFAULT_ASSOCIATIVITY : std::stoi(argv[4]);
+    int block_size = argc < 6 ? DEFAULT_BLOCK_SIZE : std::stoi(argv[5]);
 
     bool json_output = false;
     for (int i = 6; i < argc; ++i)
@@ -159,7 +165,6 @@ int main(int argc, char *argv[])
             json_output = true;
     }
 
-    std::string trace_path = resolve_part1_trace_path(input);
     simulate_single_core(trace_path, cache_size, assoc, block_size, json_output);
     return 0;
 }

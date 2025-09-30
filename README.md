@@ -35,7 +35,10 @@ Usage:
 # Example: 4 KiB cache, 2-way, 32B blocks (defaults suggested by the spec)
 ./coherence MESI bodytrack 4096 2 32
 
-# or with explicit filename
+# Run with default parameters
+./coherence Dragon bodytrack
+
+# Run with explicit filename
 ./coherence Dragon ./traces/bodytrack_0.data 4096 2 32 --json
 ```
 
