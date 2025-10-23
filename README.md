@@ -2,6 +2,8 @@
 
 This is an implementation of a cache coherence simulator using traces in C++.
 
+Refer to the `part2` folder for the instructions for building and running the MESI implementation.
+
 ## Setup
 
 1. Build the cache coherence simulator:
