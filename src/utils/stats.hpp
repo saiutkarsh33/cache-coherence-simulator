@@ -7,6 +7,7 @@
 #include <vector>
 #include <iostream>
 #include "types.hpp"
+#include "trace_item.hpp"
 
 struct CoreStats
 {
@@ -59,13 +60,16 @@ public:
     {
         st[core].compute_cycles += advance_time;
     }
-    void increment_stores(int core)
+    void increment_mem_op(int core, Operation op)
     {
-        st[core].stores++;
-    }
-    void increment_loads(int core)
-    {
-        st[core].loads++;
+        if (op == Operation::Store)
+        {
+            st[core].stores++;
+        }
+        if (op == Operation::Load)
+        {
+            st[core].loads++;
+        }
     }
     void increment_hits(int core)
     {

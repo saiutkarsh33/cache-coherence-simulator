@@ -1,15 +1,35 @@
 #ifndef TRACE_ITEM_HPP
 #define TRACE_ITEM_HPP
 
+#include <string>
 #include "types.hpp"
 
 // Operation defines the possible operations the input can take.
-enum Operation : int
+enum class Operation
 {
-    Load = 0,
-    Store = 1,
-    Other = 2,
+    Load,
+    Store,
+    Other,
 };
+
+static Operation parse_operation(std::string label)
+{
+    switch (std::stoi(label))
+    {
+    case 0:
+        return Operation::Load;
+        break;
+    case 1:
+        return Operation::Store;
+        break;
+    case 2:
+        return Operation::Other;
+        break;
+    default:
+        std::cerr << "Invalid label value: " << label << ".\n";
+        std::exit(2);
+    }
+}
 
 // Each TraceItem represents a single line from the input.
 struct TraceItem
@@ -40,21 +60,7 @@ static std::vector<TraceItem> parse_trace(const std::string &path)
         Operation op;
         try
         {
-            switch (std::stoi(label))
-            {
-            case 0:
-                op = Operation::Load;
-                break;
-            case 1:
-                op = Operation::Store;
-                break;
-            case 2:
-                op = Operation::Other;
-                break;
-            default:
-                std::cerr << "Invalid label value of " << label << " in " << path << "\n";
-                std::exit(2);
-            }
+            op = parse_operation(label);
         }
         catch (...)
         {

@@ -108,31 +108,26 @@ public:
 
             // trace_item must be either a Load or a Store here.
             TraceItem trace_item = traces[curr_core][cur_idx[curr_core]];
+            stats.increment_mem_op(curr_core, trace_item.op);
 
             // Processor access at time ready_at[c]
             int extra_cycles = 0, bus_bytes = 0;
             bool upgr = false;
-            auto acc = caches[curr_core].pr_access(ready_at[curr_core], trace_item.op == Operation::Store, trace_item.addr,
-                                                   extra_cycles, bus_bytes, N_words, upgr);
+            auto acc = caches[curr_core].pr_access(
+                ready_at[curr_core],
+                trace_item.op == Operation::Store,
+                trace_item.addr,
+                extra_cycles, bus_bytes, N_words, upgr);
 
             if (acc.hit)
             {
                 // Hit: 1 cycle service
-                if (trace_item.op == Operation::Store)
-                    stats.increment_stores(curr_core);
-                else
-                    stats.increment_loads(curr_core);
                 stats.increment_hits(curr_core);
                 ready_at[curr_core] += CYCLE_HIT;
             }
             else
             {
                 // Miss or S->M upgrade
-                if (trace_item.op == Operation::Load)
-                    stats.increment_stores(curr_core);
-                else
-                    stats.increment_loads(curr_core);
-
                 if (acc.needs_bus)
                 {
                     // Decide bus op & data source via snooping
