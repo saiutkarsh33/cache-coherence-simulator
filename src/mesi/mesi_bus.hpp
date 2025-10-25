@@ -4,11 +4,6 @@
 #include <algorithm>
 #include <cstdint>
 
-static constexpr int CYCLE_HIT = 1;
-static constexpr int CYCLE_MEM_BLOCK_FETCH = 100;
-static constexpr int CYCLE_WRITEBACK_DIRTY = 100;
-static constexpr int WORD_BYTES = 4;
-
 // Bus operations
 enum class BusOp
 {

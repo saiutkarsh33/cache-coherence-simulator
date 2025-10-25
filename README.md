@@ -1,8 +1,8 @@
 # Cache Coherence Simulator
 
-This is an implementation of a cache coherence simulator using traces in C++.
+This is an implementation of a cache coherence simulator supporting both MESI and DRAGON protocols using traces, in C++ programming language (C++ 17).
 
-Refer to the `part2` folder for the instructions for building and running the MESI implementation.
+Refer to the `src/mesi` folder for the instructions for building and running a MESI specific implementation.
 
 ## Setup
 
@@ -41,7 +41,7 @@ Usage:
 ./coherence Dragon bodytrack
 
 # Run with explicit filename
-./coherence Dragon ./traces/bodytrack_0.data 4096 2 32 --json
+./coherence Dragon ./tests/benchmark_traces/bodytrack_0.data 4096 2 32 --json
 ```
 
 3. Automated test running with traces:
@@ -68,10 +68,10 @@ Running the cache coherence simulator gives the following output:
 8. Invalidations/Updates
 9. Private vs Shared
 
-### Sample runs
+### Single core sample runs
 
 ```bash
-> ./coherence MESI ./traces/bodytrack_0.data 1024 1 16
+> ./coherence MESI ./tests/benchmark_traces/bodytrack_0.data 1024 1 16
 
 Overall Execution Cycles: 75419786
 Per-core execution cycles: [75419786]
@@ -83,7 +83,7 @@ Bus data traffic (bytes): 8707264
 Invalidations/Updates:    0
 Private vs Shared:        3270132 / 0
 
-> ./coherence MESI ./traces/bodytrack_0.data 4096 2 32
+> ./coherence MESI ./tests/benchmark_traces/bodytrack_0.data 4096 2 32
 
 Overall Execution Cycles: 42034386
 Per-core execution cycles: [42034386]

@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <sys/stat.h>
 #include <vector>
+#include "constants.hpp"
 #include "types.hpp"
 
 // file_exists checks if a file with the path exists.
@@ -42,7 +43,7 @@ inline std::string resolve_part1_trace_path(const std::string &input)
 {
     if (file_exists(input))
         return input;
-    std::string alt = "./traces/" + input + "_0.data";
+    std::string alt = DEFAULT_TRACES_PATH + input + "_0.data";
     if (file_exists(alt))
         return alt;
     std::cerr << "Could not find trace file: '" << input << "' or '" << alt << "'\n";
@@ -62,33 +63,51 @@ static std::vector<std::string> resolve_four(const std::string &input)
         v[2] = base + "_2.data";
         v[3] = base + "_3.data";
         for (auto &p : v)
+        {
             if (!file_exists(p))
             {
                 std::cerr << "Missing: " << p << "\n";
                 std::exit(2);
             }
+        }
         return v;
     }
 
-    // Case B: bare base (e.g., "bodytrack") — try ./traces then CWD
+    // Case B: bare base (e.g., "bodytrack") — try DEFAULT_TRACES_PATH then CWD
     std::vector<std::string> tries{
-        "./traces/" + input + "_0.data", "./traces/" + input + "_1.data",
-        "./traces/" + input + "_2.data", "./traces/" + input + "_3.data"};
+        DEFAULT_TRACES_PATH + input + "_0.data",
+        DEFAULT_TRACES_PATH + input + "_1.data",
+        DEFAULT_TRACES_PATH + input + "_2.data",
+        DEFAULT_TRACES_PATH + input + "_3.data",
+    };
     bool ok = true;
     for (int i = 0; i < 4; i++)
+    {
         ok = ok && file_exists(tries[i]);
+    }
     if (ok)
+    {
         return tries;
+    }
 
-    tries = {input + "_0.data", input + "_1.data", input + "_2.data", input + "_3.data"};
+    tries = {
+        input + "_0.data",
+        input + "_1.data",
+        input + "_2.data",
+        input + "_3.data",
+    };
     ok = true;
     for (int i = 0; i < 4; i++)
+    {
         ok = ok && file_exists(tries[i]);
+    }
     if (ok)
+    {
         return tries;
+    }
 
     std::cerr << "Could not resolve four trace files for base '" << input << "'.\n";
-    std::cerr << "Provide e.g.: ./coherence MESI ./traces/bodytrack_0.data 4096 2 32\n";
+    std::cerr << "Provide e.g.: ./coherence MESI " << DEFAULT_TRACES_PATH << "bodytrack_0.data 4096 2 32\n";
     std::exit(2);
 }
 

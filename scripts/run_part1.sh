@@ -3,7 +3,7 @@ set -euo pipefail
 
 # --- config you can tweak ---
 BIN="./coherence"          # path to your simulator binary
-TRACES="./traces"         # folder containing *_0.data
+TRACES="./tests/benchmark_traces"         # folder containing *_0.data
 CACHE_SIZE=4096            # bytes
 ASSOC=2
 BLOCK=32

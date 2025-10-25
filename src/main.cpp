@@ -5,7 +5,7 @@
 // <protocol> can be either "MESI" or "DRAGON".
 //
 // If <input> ends with "_0.data", we auto-resolve _1/_2/_3 in the same folder.
-// If it's a base name with no underscore (e.g., "bodytrack"), we try ./traces/bodytrack_0..3.data.
+// If it's a base name with no underscore (e.g., "bodytrack"), we try ./tests/benchmark_traces/bodytrack_0..3.data.
 
 #include <iostream>
 #include <string>

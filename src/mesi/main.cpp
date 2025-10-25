@@ -3,12 +3,13 @@
 //   ./coherence MESI <input_base_or_any_0.data> <cache_size> <associativity> <block_size> [--json]
 //
 // If <input> ends with "_0.data", we auto-resolve _1/_2/_3 in the same folder.
-// If it's a base name with no underscore (e.g., "bodytrack"), we try ./traces/bodytrack_0..3.data then CWD.
+// If it's a base name with no underscore (e.g., "bodytrack"), we try ./tests/benchmark_traces/bodytrack_0..3.data then CWD.
 
 #include <iostream>
 #include <string>
 #include <vector>
 #include <sys/stat.h>
+#include "../utils/constants.hpp"
 #include "mesi_sim.hpp"
 
 static inline bool file_exists(const std::string &p)
@@ -38,8 +39,8 @@ static std::vector<std::string> resolve_four(const std::string &input)
     }
     // Case B: bare base (e.g., "bodytrack") — try ./traces then CWD
     std::vector<std::string> tries{
-        "./traces/" + input + "_0.data", "./traces/" + input + "_1.data",
-        "./traces/" + input + "_2.data", "./traces/" + input + "_3.data"};
+        DEFAULT_TRACES_PATH + input + "_0.data", DEFAULT_TRACES_PATH + input + "_1.data",
+        DEFAULT_TRACES_PATH + input + "_2.data", DEFAULT_TRACES_PATH + input + "_3.data"};
     bool ok = true;
     for (int i = 0; i < 4; i++)
         ok = ok && file_exists(tries[i]);
@@ -54,7 +55,7 @@ static std::vector<std::string> resolve_four(const std::string &input)
         return tries;
 
     std::cerr << "Could not resolve four trace files for base '" << input << "'.\n";
-    std::cerr << "Provide e.g.: ./coherence MESI ./traces/bodytrack_0.data 4096 2 32\n";
+    std::cerr << "Provide e.g.: ./coherence MESI " << DEFAULT_TRACES_PATH << "bodytrack_0.data 4096 2 32\n ";
     std::exit(2);
 }
 
