@@ -14,23 +14,11 @@
 #include <string>
 #include <tuple>
 #include <vector>
-#include "types.hpp"
-#include "constants.hpp"
-#include "utils.hpp"
+#include "../types.hpp"
+#include "../constants.hpp"
+#include "../utils.hpp"
 #include "cache.cpp"
-
-struct CoreStats
-{
-    u64 exec_cycles = 0;    // time at end
-    u64 compute_cycles = 0; // sum of "2 value" entries
-    u64 idle_cycles = 0;    // cycles waiting beyond 1-cycle hit
-    u64 loads = 0;
-    u64 stores = 0;
-    u64 hits = 0;
-    u64 misses = 0;
-    u64 private_accesses = 0;
-    u64 shared_accesses = 0;
-};
+#include "../stats.hpp"
 
 // simulate_single_core just simulates the cache for part 1.
 static void simulate_single_core(const std::string &trace_path,

@@ -10,8 +10,13 @@
 
 struct CoreStats
 {
-    u64 exec_cycles = 0, compute_cycles = 0, idle_cycles = 0;
+    u64 exec_cycles = 0;    // time at end.
+    u64 compute_cycles = 0; // sum of "2" value entries.
+    u64 idle_cycles = 0;    // cycles waiting beyond 1-cycle hit.
+
     u64 loads = 0, stores = 0, hits = 0, misses = 0;
+
+    u64 private_accesses, shared_accesses = 0; // TODO
 };
 
 class Stats
