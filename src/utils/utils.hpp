@@ -5,6 +5,7 @@
 
 #include <string>
 #include <iostream>
+#include <algorithm>
 #include <cstdlib>
 #include <sys/stat.h>
 #include <vector>
@@ -36,6 +37,15 @@ inline u64 parse_auto_base(const std::string &s)
         std::cerr << "Invalid number '" << s << "': " << e.what() << '\n';
         std::exit(2);
     }
+}
+
+// decode_addr decodes an address and returns the [index, tag] as a pair.
+inline std::pair<int, u32> decode_address(u32 address, int block_bytes, int set_count)
+{
+    u32 line_addr = address / block_bytes;
+    int index = (int)(line_addr % set_count);
+    u32 tag = (u32)(line_addr / set_count);
+    return {index, tag};
 }
 
 // resolve_part1_trace_path resolves 1 input trace file (for part 1).

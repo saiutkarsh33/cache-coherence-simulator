@@ -28,7 +28,7 @@ private:
     // traces stores the input trace files as TraceItems per core.
     std::vector<std::vector<TraceItem>> traces;
     // ready_at tracks the time which a core is ready to take in the next insn per core.
-    std::vector<uint64_t> ready_at;
+    std::vector<u64> ready_at;
     // cur_idx tracks the current insn called per core.
     std::vector<size_t> cur_idx;
 
