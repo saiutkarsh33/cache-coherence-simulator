@@ -11,53 +11,7 @@
 #include <sys/stat.h>
 #include "../utils/constants.hpp"
 #include "mesi_sim.hpp"
-
-static inline bool file_exists(const std::string &p)
-{
-    struct stat sb{};
-    return ::stat(p.c_str(), &sb) == 0 && S_ISREG(sb.st_mode);
-}
-
-static std::vector<std::string> resolve_four(const std::string &input)
-{
-    std::vector<std::string> v(4);
-    // Case A: explicit _0.data
-    if (input.size() > 7 && input.rfind("_0.data") == input.size() - 7)
-    {
-        const auto base = input.substr(0, input.size() - 7);
-        v[0] = base + "_0.data";
-        v[1] = base + "_1.data";
-        v[2] = base + "_2.data";
-        v[3] = base + "_3.data";
-        for (auto &p : v)
-            if (!file_exists(p))
-            {
-                std::cerr << "Missing: " << p << "\n";
-                std::exit(2);
-            }
-        return v;
-    }
-    // Case B: bare base (e.g., "bodytrack") — try ./traces then CWD
-    std::vector<std::string> tries{
-        DEFAULT_TRACES_PATH + input + "_0.data", DEFAULT_TRACES_PATH + input + "_1.data",
-        DEFAULT_TRACES_PATH + input + "_2.data", DEFAULT_TRACES_PATH + input + "_3.data"};
-    bool ok = true;
-    for (int i = 0; i < 4; i++)
-        ok = ok && file_exists(tries[i]);
-    if (ok)
-        return tries;
-
-    tries = {input + "_0.data", input + "_1.data", input + "_2.data", input + "_3.data"};
-    ok = true;
-    for (int i = 0; i < 4; i++)
-        ok = ok && file_exists(tries[i]);
-    if (ok)
-        return tries;
-
-    std::cerr << "Could not resolve four trace files for base '" << input << "'.\n";
-    std::cerr << "Provide e.g.: ./coherence MESI " << DEFAULT_TRACES_PATH << "bodytrack_0.data 4096 2 32\n ";
-    std::exit(2);
-}
+#include "../utils/utils.hpp"
 
 int main(int argc, char *argv[])
 {
