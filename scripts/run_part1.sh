@@ -8,7 +8,7 @@ CACHE_SIZE=4096            # bytes
 ASSOC=2
 BLOCK=32
 PROTOCOL="MESI"            # ignored in Part 1; kept for CLI parity
-OUTDIR="./out"
+OUTDIR="./tests/out"
 # ----------------------------
 
 mkdir -p "$OUTDIR"
