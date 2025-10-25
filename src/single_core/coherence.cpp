@@ -14,11 +14,11 @@
 #include <string>
 #include <tuple>
 #include <vector>
-#include "../types.hpp"
-#include "../constants.hpp"
-#include "../utils.hpp"
+#include "../utils/types.hpp"
+#include "../utils/constants.hpp"
+#include "../utils/utils.hpp"
+#include "../utils/stats.hpp"
 #include "cache.cpp"
-#include "../stats.hpp"
 
 // simulate_single_core just simulates the cache for part 1.
 static void simulate_single_core(const std::string &trace_path,

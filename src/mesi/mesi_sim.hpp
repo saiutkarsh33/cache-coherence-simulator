@@ -11,8 +11,8 @@
 #include <cstdint>
 #include "mesi_bus.hpp"
 #include "mesi_cache.hpp"
-#include "../trace_item.hpp"
-#include "../stats.hpp"
+#include "../utils/trace_item.hpp"
+#include "../utils/stats.hpp"
 
 class MESISim
 {

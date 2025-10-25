@@ -10,7 +10,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include "utils.hpp"
+#include "utils/utils.hpp"
 #include "mesi/mesi_sim.hpp"
 
 int main(int argc, char *argv[])
