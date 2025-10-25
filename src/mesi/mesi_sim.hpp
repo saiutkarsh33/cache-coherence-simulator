@@ -13,6 +13,7 @@
 #include "mesi_cache.hpp"
 #include "../utils/trace_item.hpp"
 #include "../utils/stats.hpp"
+#include "../utils/types.hpp"
 
 class MESISim
 {
@@ -24,8 +25,11 @@ private:
 
     Stats stats;
 
-    std::vector<std::vector<TraceItem>> tr;
+    // traces stores the input trace files as TraceItems per core.
+    std::vector<std::vector<TraceItem>> traces;
+    // ready_at tracks the time which a core is ready to take in the next insn per core.
     std::vector<uint64_t> ready_at;
+    // cur_idx tracks the current insn called per core.
     std::vector<size_t> cur_idx;
 
 public:
@@ -47,11 +51,15 @@ public:
             std::cerr << "need 4 traces\n";
             std::exit(2);
         }
-        tr.resize(4);
+
+        traces.resize(4);
         for (int c = 0; c < 4; c++)
-            tr[c] = parse_trace(paths[c]);
+        {
+            traces[c] = parse_trace(paths[c]);
+        }
     }
 
+    // run handles the event loop across multiple cores.
     void run()
     {
         // Per-core bookkeeping
@@ -59,90 +67,79 @@ public:
         cur_idx.assign(4, 0);
         overall_bus = Bus{};
 
-        // Prime the first issue times by their initial gaps
-        for (int c = 0; c < 4; c++)
+        // Event-loop: choose next core to issue based on which is ready first.
+        while (true)
         {
-            if (cur_idx[c] < tr[c].size())
-            {
-                if (!tr[c][cur_idx[c]].is_mem)
-                {
-                    // should not happen (we coalesce compute into gap), but guard anyway
-                }
-            }
-        }
-
-        // Event-loop: choose next core to issue based on ready_at + next gap
-        int live = 0;
-        for (int c = 0; c < 4; c++)
-            if (cur_idx[c] < tr[c].size())
-                live++;
-
-        while (live > 0)
-        {
+            // Determine which core to use.
             int next_core = -1;
-            uint64_t next_time = UINT64_MAX;
+            u64 next_time = UINT64_MAX;
             for (int c = 0; c < 4; c++)
             {
-                if (cur_idx[c] >= tr[c].size())
-                    continue;
-                uint64_t t = ready_at[c] + tr[c][cur_idx[c]].gap;
-                if (t < next_time)
+                int max_idx = traces[c].size();
+
+                // Iterate until we process all compute cycles for a core.
+                while (cur_idx[c] < max_idx && traces[c][cur_idx[c]].op == Operation::Other)
                 {
-                    next_time = t;
+                    TraceItem trace_item = traces[c][cur_idx[c]];
+
+                    // Advance ready at and core time by compute cycles.
+                    ready_at[c] += trace_item.cycles;
+                    stats.advance_core_time(c, trace_item.cycles);
+
+                    // Increment the idx.
+                    cur_idx[c]++;
+                }
+
+                // Check if the core has the smallest ready at time out of all cores.
+                if (cur_idx[c] < max_idx && ready_at[c] < next_time)
+                {
+                    next_time = ready_at[c];
                     next_core = c;
                 }
             }
             if (next_core < 0)
-                break; // done
-
-            const int c = next_core;
-            auto &item = tr[c][cur_idx[c]];
-            // Advance core time by compute gap
-            ready_at[c] += item.gap;
-            stats.advance_core_time(c, item.gap);
-
-            if (!item.is_mem)
             {
-                // should not occur; just continue
-                cur_idx[c]++;
-                if (cur_idx[c] == tr[c].size())
-                {
-                    live--;
-                }
-                continue;
+                // No other core to process, terminate event loop.
+                break;
             }
+
+            // The next_core represents the core which is ready the earliest
+            const int curr_core = next_core;
+
+            // trace_item must be either a Load or a Store here.
+            TraceItem trace_item = traces[curr_core][cur_idx[curr_core]];
 
             // Processor access at time ready_at[c]
             int extra_cycles = 0, bus_bytes = 0;
             bool upgr = false;
-            auto acc = caches[c].pr_access(ready_at[c], item.is_store, item.addr,
-                                           extra_cycles, bus_bytes, N_words, upgr);
+            auto acc = caches[curr_core].pr_access(ready_at[curr_core], trace_item.op == Operation::Store, trace_item.addr,
+                                                   extra_cycles, bus_bytes, N_words, upgr);
 
             if (acc.hit)
             {
                 // Hit: 1 cycle service
-                if (item.is_store)
-                    stats.increment_stores(c);
+                if (trace_item.op == Operation::Store)
+                    stats.increment_stores(curr_core);
                 else
-                    stats.increment_loads(c);
-                stats.increment_hits(c);
-                ready_at[c] += CYCLE_HIT;
+                    stats.increment_loads(curr_core);
+                stats.increment_hits(curr_core);
+                ready_at[curr_core] += CYCLE_HIT;
             }
             else
             {
                 // Miss or S->M upgrade
-                if (item.is_store)
-                    stats.increment_stores(c);
+                if (trace_item.op == Operation::Load)
+                    stats.increment_stores(curr_core);
                 else
-                    stats.increment_loads(c);
+                    stats.increment_loads(curr_core);
 
                 if (acc.needs_bus)
                 {
                     // Decide bus op & data source via snooping
                     BusTxn t{};
                     t.op = acc.busop;
-                    t.addr = item.addr;
-                    t.src_core = c;
+                    t.addr = trace_item.addr;
+                    t.src_core = curr_core;
                     if (t.op == BusOp::BusUpgr)
                     {
                         // address-only
@@ -151,78 +148,76 @@ public:
                         // Snoop: invalidate S in others
                         // (We count one broadcast in Bus::schedule; per-recipient not needed)
                         // Simulate bus arbitration
-                        uint64_t end = overall_bus.schedule(ready_at[c], t);
+                        u64 end = overall_bus.schedule(ready_at[curr_core], t);
                         // Apply snoop to others
                         for (int k = 0; k < 4; k++)
-                            if (k != c)
-                                caches[k].on_busupgr(item.addr, end);
+                            if (k != curr_core)
+                                caches[k].on_busupgr(trace_item.addr, end);
+
                         // Service time is 1 cycle beyond the core hit (we already add 1 hit cycle below)
                         // We model blocking: core waits for the bus upgrade before completing the store
-                        stats.increment_hits(c);                           // it's a hit promotion
-                        stats.increment_idle_cycles(c, end - ready_at[c]); // waiting time
-                        ready_at[c] = end;                                 // now finish with the local hit
-                        ready_at[c] += CYCLE_HIT;
+                        stats.increment_hits(curr_core);                                   // it's a hit promotion
+                        stats.increment_idle_cycles(curr_core, end - ready_at[curr_core]); // waiting time
+                        ready_at[curr_core] = end;                                         // now finish with the local hit
+                        ready_at[curr_core] += CYCLE_HIT;
                     }
                     else
                     {
-                        // BusRd or BusRdX: check if any M owner supplies
+                        // BusRd or BusRdX: check if any M owner supplies.
                         bool c2c = false;
                         bool any_inval = false;
-                        // First pass snoop to determine suppliers
+
+                        // First pass snoop to determine suppliers.
                         for (int k = 0; k < 4; k++)
-                            if (k != c)
+                            if (k != curr_core)
                             {
                                 if (t.op == BusOp::BusRd)
                                 {
-                                    auto r = caches[k].on_busrd(item.addr, ready_at[c]);
+                                    auto r = caches[k].on_busrd(trace_item.addr, ready_at[curr_core]);
                                     if (r.supplied_block)
                                         c2c = true;
                                 }
                                 else if (t.op == BusOp::BusRdX)
                                 {
-                                    auto r = caches[k].on_busrdx(item.addr, ready_at[c]);
+                                    auto r = caches[k].on_busrdx(trace_item.addr, ready_at[curr_core]);
                                     if (r.supplied_block)
                                         c2c = true;
                                     if (r.invalidated)
                                         any_inval = true;
                                 }
                             }
-                        // Compute duration & bytes. We always transfer a block (either from mem or M)
+                        // Compute duration & bytes. We always transfer a block (either from mem or M).
                         t.data_bytes = B;
                         t.duration = c2c ? (2 * N_words) : CYCLE_MEM_BLOCK_FETCH;
 
                         // If we earlier added mem fetch (100) pessimistically, adjust to c2c if needed:
-                        caches[c].adjust_fill_after_source(!c2c, extra_cycles, bus_bytes, N_words);
+                        caches[curr_core].adjust_fill_after_source(!c2c, extra_cycles, bus_bytes, N_words);
 
-                        uint64_t end = overall_bus.schedule(ready_at[c], t);
+                        uint64_t end = overall_bus.schedule(ready_at[curr_core], t);
 
                         // Service time at the core:
                         // - baseline 1 (like a hit)
                         // - plus extra_cycles already computed (may include WB and fetch replacement)
-                        stats.increment_misses(c);
-                        stats.increment_idle_cycles(c, (CYCLE_HIT + extra_cycles) - CYCLE_HIT);
-                        ready_at[c] += (CYCLE_HIT + extra_cycles);
-                        // Note: blocking model — we serialized WB + fetch/c2c before core proceeds
+                        stats.increment_misses(curr_core);
+                        stats.increment_idle_cycles(curr_core, (CYCLE_HIT + extra_cycles) - CYCLE_HIT);
+                        ready_at[curr_core] += (CYCLE_HIT + extra_cycles);
+                        // Note: blocking model — we serialized WB + fetch/c2c before core proceeds.
                     }
                 }
                 else
                 {
-                    // Should not occur (miss without bus), but keep safe
-                    stats.increment_misses(c);
-                    ready_at[c] += (CYCLE_HIT + extra_cycles);
-                    stats.increment_idle_cycles(c, extra_cycles);
+                    // Should not occur (miss without bus), but keep safe.
+                    stats.increment_misses(curr_core);
+                    ready_at[curr_core] += (CYCLE_HIT + extra_cycles);
+                    stats.increment_idle_cycles(curr_core, extra_cycles);
                 }
             }
 
-            // Advance to next op on this core
-            cur_idx[c]++;
-            if (cur_idx[c] == tr[c].size())
-            {
-                live--;
-            }
+            // Advance to next operation on this core.
+            cur_idx[curr_core]++;
         }
 
-        // Final exec times
+        // Update stats with final exec times.
         for (int c = 0; c < 4; c++)
         {
             stats.set_exec_cycles(c, ready_at[c]);

@@ -138,7 +138,3 @@ fluidanimate:
   "config": { "cache_size": 0, "associativity": 0, "block_size": 32 }
 }
 ```
-
-## 8) Assumptions made
-
-- Trailing compute operations are ignored, since these operations do not affect cache coherence.
