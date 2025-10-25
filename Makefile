@@ -9,7 +9,7 @@ extract: benchmarks
 
 # Compile C++ files
 build: src
-	$(CXX) $(CXXFLAGS) -o coherence ./src/coherence.cpp
+	$(CXX) $(CXXFLAGS) -o coherence ./src/main.cpp
 
 # Clean up C++ output files
 clean:

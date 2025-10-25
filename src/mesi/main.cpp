@@ -1,59 +1,22 @@
-// utils.hpp contain useful functions for parsing the input file.
+// main.cpp — CS4223 A2 Part 2 (4-core MESI) entrypoint.
+// CLI (compatible with Part 1):
+//   ./coherence MESI <input_base_or_any_0.data> <cache_size> <associativity> <block_size> [--json]
+//
+// If <input> ends with "_0.data", we auto-resolve _1/_2/_3 in the same folder.
+// If it's a base name with no underscore (e.g., "bodytrack"), we try ./traces/bodytrack_0..3.data then CWD.
 
-#ifndef UTILS_HPP
-#define UTILS_HPP
-
-#include <string>
 #include <iostream>
-#include <cstdlib>
-#include <sys/stat.h>
+#include <string>
 #include <vector>
-#include "types.hpp"
+#include <sys/stat.h>
+#include "mesi_sim.hpp"
 
-// file_exists checks if a file with the path exists.
-inline bool file_exists(const std::string &path)
+static inline bool file_exists(const std::string &p)
 {
     struct stat sb{};
-    // I_ISREG checks if the mode indicates a regular file.
-    return ::stat(path.c_str(), &sb) == 0 && S_ISREG(sb.st_mode);
+    return ::stat(p.c_str(), &sb) == 0 && S_ISREG(sb.st_mode);
 }
 
-// parse_auto_base helps to parse a hexadecimal string.
-inline u64 parse_auto_base(const std::string &s)
-{
-    // Accepts "1234", "0x4d2", etc.
-    std::size_t idx = 0;
-    u64 v = 0;
-    try
-    {
-        v = std::stoull(s, &idx, 0); // base 0 -> auto-detect (0x for hex)
-    }
-    catch (...)
-    {
-        std::cerr << "Failed to parse numeric value: '" << s << "'\n";
-        std::exit(2);
-    }
-    if (idx != s.size())
-    {
-        std::cerr << "Trailing characters in numeric value: '" << s << "'\n";
-        std::exit(2);
-    }
-    return v;
-}
-
-// resolve_part1_trace_path resolves 1 input trace file (for part 1).
-inline std::string resolve_part1_trace_path(const std::string &input)
-{
-    if (file_exists(input))
-        return input;
-    std::string alt = "./traces/" + input + "_0.data";
-    if (file_exists(alt))
-        return alt;
-    std::cerr << "Could not find trace file: '" << input << "' or '" << alt << "'\n";
-    std::exit(2);
-}
-
-// resolve_four resolves 4 input trace files.
 static std::vector<std::string> resolve_four(const std::string &input)
 {
     std::vector<std::string> v(4);
@@ -95,4 +58,34 @@ static std::vector<std::string> resolve_four(const std::string &input)
     std::exit(2);
 }
 
-#endif
+int main(int argc, char *argv[])
+{
+    if (argc < 6)
+    {
+        std::cerr << "Usage: " << argv[0]
+                  << " MESI <input_base_or_any_0.data> <cache_size> <associativity> <block_size> [--json]\n";
+        return 2;
+    }
+    std::string protocol = argv[1];
+    if (protocol != "MESI")
+    {
+        std::cerr << "This binary implements Part 2 MESI. Use 'MESI' as the protocol arg.\n";
+        return 2;
+    }
+    std::string input = argv[2];
+    const int cache_size = std::stoi(argv[3]);
+    const int assoc = std::stoi(argv[4]);
+    const int block_size = std::stoi(argv[5]);
+    bool json = false;
+    for (int i = 6; i < argc; i++)
+        if (std::string(argv[i]) == "--json")
+            json = true;
+
+    auto paths = resolve_four(input);
+
+    MESISim sim(cache_size, assoc, block_size);
+    sim.load_traces(paths);
+    sim.run();
+    sim.print_results(json);
+    return 0;
+}

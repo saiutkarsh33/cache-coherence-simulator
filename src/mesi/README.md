@@ -7,10 +7,10 @@ This folder builds a 4-core MESI simulator (`./coherence`) and runs it on PARSEC
 Make sure you already unzipped the benchmark zips so you have files like:
 
 ```
-../traces/bodytrack_0.data
-../traces/bodytrack_1.data
-../traces/bodytrack_2.data
-../traces/bodytrack_3.data
+../../traces/bodytrack_0.data
+../../traces/bodytrack_1.data
+../../traces/bodytrack_2.data
+../../traces/bodytrack_3.data
 ```
 
 If your traces are elsewhere, adjust the paths below.
@@ -28,8 +28,8 @@ make
 **Option A — symlink (then you can use short benchmark names)**
 
 ```bash
-# from part2/
-ln -s ../traces ./traces
+# from src/mesi/
+ln -s ../../traces ./traces
 ```
 
 **Option B — don’t symlink; pass an explicit \_0.data path**
@@ -50,8 +50,8 @@ ln -s ../traces ./traces
 
 ```bash
 # give explicit _0.data; the program auto-loads _1/_2/_3 from the same folder
-./coherence MESI ../traces/bodytrack_0.data 4096 2 32 --json
-./coherence MESI ../traces/blackscholes_0.data 4096 2 32
+./coherence MESI ../../traces/bodytrack_0.data 4096 2 32 --json
+./coherence MESI ../../traces/blackscholes_0.data 4096 2 32
 ```
 
 ## 4) What you should see
@@ -77,8 +77,8 @@ mkdir -p out
 `Could not resolve four trace files for base 'bodytrack'.`
 **Fix:** Use one of:
 
-- Create the symlink: `ln -s ../traces ./traces` then run `./coherence MESI bodytrack ...`
-- Or pass explicit path: `./coherence MESI ../traces/bodytrack_0.data ...`
+- Create the symlink: `ln -s ../../traces ./traces` then run `./coherence MESI bodytrack ...`
+- Or pass explicit path: `./coherence MESI ../../traces/bodytrack_0.data ...`
 
 ## 7) Sample output
 
@@ -139,6 +139,6 @@ fluidanimate:
 }
 ```
 
-## 7) Assumptions made
+## 8) Assumptions made
 
 - Trailing compute operations are ignored, since these operations do not affect cache coherence.
