@@ -19,26 +19,22 @@ inline bool file_exists(const std::string &path)
 }
 
 // parse_auto_base helps to parse a hexadecimal string.
+// Accepts "1234", "0x4d2", etc.
 inline u64 parse_auto_base(const std::string &s)
 {
-    // Accepts "1234", "0x4d2", etc.
-    std::size_t idx = 0;
-    u64 v = 0;
     try
     {
-        v = std::stoull(s, &idx, 0); // base 0 -> auto-detect (0x for hex)
+        size_t idx;
+        u64 v = std::stoull(s, &idx, 0);
+        if (idx != s.size())
+            throw std::invalid_argument("Trailing characters");
+        return v;
     }
-    catch (...)
+    catch (const std::exception &e)
     {
-        std::cerr << "Failed to parse numeric value: '" << s << "'\n";
+        std::cerr << "Invalid number '" << s << "': " << e.what() << '\n';
         std::exit(2);
     }
-    if (idx != s.size())
-    {
-        std::cerr << "Trailing characters in numeric value: '" << s << "'\n";
-        std::exit(2);
-    }
-    return v;
 }
 
 // resolve_part1_trace_path resolves 1 input trace file (for part 1).
@@ -73,6 +69,7 @@ static std::vector<std::string> resolve_four(const std::string &input)
             }
         return v;
     }
+
     // Case B: bare base (e.g., "bodytrack") — try ./traces then CWD
     std::vector<std::string> tries{
         "./traces/" + input + "_0.data", "./traces/" + input + "_1.data",
