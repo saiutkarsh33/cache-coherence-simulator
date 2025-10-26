@@ -1,0 +1,16 @@
+{
+  "overall_execution_cycles": 40983360,
+  "per_core_execution_cycles": [40081085,37781043,40983360,37466980],
+  "per_core_compute_cycles": [11337782,11290799,11337671,11301515],
+  "per_core_loads": [1832392,1821846,1838008,1832174],
+  "per_core_stores": [744111,585998,766181,579291],
+  "per_core_idle_cycles": [26166800,24082400,27041500,23754000],
+  "per_core_hits": [2412939,2254568,2434901,2261201],
+  "per_core_misses": [163564,153276,169288,150264],
+  "per_core_private_accesses": [640803,454463,676073,563346],
+  "per_core_shared_accesses": [1772136,1800105,1758828,1697855],
+  "bus_data_traffic_bytes": 20364544,
+  "bus_invalidations_or_updates": 303238,
+  "protocol": "Dragon",
+  "config": {"cache_size": 4096, "associativity": 2, "block_size": 32}
+}

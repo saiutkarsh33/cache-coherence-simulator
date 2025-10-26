@@ -15,9 +15,9 @@ build: src
 clean:
 	rm -f coherence
 
-# Basic testing
-test: coherence
-	./scripts/run_part1.sh
+# Run benchmarks.
+run: coherence
+	./scripts/run_benchmarks.sh
 
 # Extensive testing
 sweep: coherence
