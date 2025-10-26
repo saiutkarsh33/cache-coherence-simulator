@@ -1,4 +1,3 @@
-// dragon_protocol.hpp
 #pragma once
 #include <vector>
 #include <cstdint>
@@ -11,7 +10,7 @@
 // Dragon states: I, Sc (shared-clean), Sm (shared-modified), E (exclusive clean), M (modified)
 enum class DragonState
 {
-    I,
+    I, // Invalid state is used to represent that the cache line is not present.
     Sc,
     Sm,
     E,
@@ -221,6 +220,27 @@ public:
         }
         // Use BusRd (reads) and BusRdX (writes) as control; for Dragon writes you might choose BusUpd later.
         return AccessResult{false, true, store, store ? BusOp::BusRdX : BusOp::BusRd, true, wb};
+    }
+
+    AccessType classify_access_type(u32 addr) const override
+    {
+        DragonState s = get_line_state(addr);
+        if (s == DragonState::M)
+            return AccessType::Private;
+        if (s == DragonState::Sm || s == DragonState::Sc)
+            return AccessType::Shared;
+        return AccessType::Invalid;
+    }
+
+    DragonState get_line_state(u32 addr) const
+    {
+        auto [index, tag] = decode_address(addr, block_bytes, sets_count);
+        for (const auto &line : sets[index].ways)
+        {
+            if (line.valid && line.tag == tag)
+                return line.state;
+        }
+        return DragonState::I;
     }
 
     void adjust_fill_after_source(bool from_mem, int &service_extra_cycles, int &bus_data_bytes, int block_words) const

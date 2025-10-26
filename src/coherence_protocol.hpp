@@ -1,4 +1,3 @@
-// coherence_protocol.hpp
 #pragma once
 #include <cstdint>
 #include "bus.hpp"
@@ -10,6 +9,13 @@ struct SnoopResult
     bool had_line = false;
     bool supplied_block = false; // supplied data (cache->cache)
     bool invalidated = false;    // the snoop caused invalidation
+};
+
+enum class AccessType
+{
+    Private,
+    Shared,
+    Invalid
 };
 
 struct AccessResult
@@ -33,9 +39,10 @@ public:
                                    int &service_extra_cycles, int &bus_data_bytes,
                                    int block_words, bool &upgrade_only) = 0;
 
+    virtual AccessType classify_access_type(u32 addr) const = 0;
+
     // Snooping handlers (simulator will call appropriate handler depending on bus op)
     virtual SnoopResult on_busrd(u32 addr, u64 now) = 0;
     virtual SnoopResult on_busrdx(u32 addr, u64 now) = 0;
     virtual SnoopResult on_busupgr(u32 addr, u64 now) = 0;
-    // Some protocols may ignore certain ops (default implementation optional)
 };

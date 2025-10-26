@@ -1,4 +1,3 @@
-// bus.hpp  — modified
 #pragma once
 #include <algorithm>
 #include <cstdint>
@@ -11,7 +10,7 @@ enum class BusOp
     BusRd,
     BusRdX,
     BusUpgr,
-    BusUpd // Update - Dragon based op
+    BusUpd, // Update - Dragon based op
 };
 
 struct BusTxn
@@ -27,7 +26,7 @@ struct Bus
 {
     u64 free_at = 0;
     u64 total_data_bytes = 0;
-    u64 invalidation_broadcasts = 0; // count invalidation-like ops & updates/invals
+    u64 invalidation_or_update_broadcasts = 0; // count invalidation-like ops & updates/invals
 
     // FCFS schedule; returns finish time
     u64 schedule(u64 earliest, const BusTxn &t)
@@ -37,10 +36,10 @@ struct Bus
         free_at = end;
         total_data_bytes += (u64)t.data_bytes;
 
-        // We count upgrades and BusRdX as "invalidation-like" and BusUpd as update-broadcast (increment too)
+        // We count invalidations or updates on the bus.
         if (t.op == BusOp::BusUpgr || t.op == BusOp::BusRdX || t.op == BusOp::BusUpd)
         {
-            invalidation_broadcasts++;
+            invalidation_or_update_broadcasts++;
         }
         return end;
     }

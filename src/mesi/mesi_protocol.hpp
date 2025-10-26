@@ -227,11 +227,33 @@ public:
         return AccessResult{false, true, store, store ? BusOp::BusRdX : BusOp::BusRd, true, wb};
     }
 
+    AccessType classify_access_type(u32 addr) const override
+    {
+        MESIState s = get_line_state(addr);
+        if (s == MESIState::M || s == MESIState::E)
+            return AccessType::Private;
+        if (s == MESIState::S)
+            return AccessType::Shared;
+        return AccessType::Invalid;
+    }
+
     void adjust_fill_after_source(bool from_mem, int &service_extra_cycles, int &bus_data_bytes, int block_words) const
     {
         if (from_mem)
             return;
         service_extra_cycles -= CYCLE_MEM_BLOCK_FETCH;
         service_extra_cycles += 2 * block_words;
+    }
+
+    MESIState get_line_state(u32 addr) const
+    {
+        auto [idx, tag] = decode_address(addr, block_bytes, sets_count);
+        const auto &set = sets[idx];
+        for (const auto &line : set.ways)
+        {
+            if (line.valid && line.tag == tag)
+                return line.state;
+        }
+        return MESIState::I;
     }
 };

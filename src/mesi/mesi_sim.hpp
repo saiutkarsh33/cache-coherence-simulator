@@ -41,7 +41,7 @@ public:
                  MESIProtocol(cache_size, assoc, block_size),
                  MESIProtocol(cache_size, assoc, block_size),
                  MESIProtocol(cache_size, assoc, block_size)},
-          stats(cache_size, assoc, block_size)
+          stats(cache_size, assoc, block_size, "MESI")
     {
         assert(block_bytes > 0 && (block_bytes % WORD_BYTES) == 0);
     }
@@ -126,6 +126,13 @@ public:
                 // Hit: 1 cycle service
                 stats.increment_hits(curr_core);
                 ready_at[curr_core] += CYCLE_HIT;
+
+                // Classify access by MESI state
+                MESIState state = caches[curr_core].get_line_state(trace_item.addr);
+                if (state == MESIState::M || state == MESIState::E)
+                    stats.increment_private_access(curr_core);
+                else if (state == MESIState::S)
+                    stats.increment_shared_access(curr_core);
             }
             else
             {
@@ -219,7 +226,7 @@ public:
         {
             stats.set_exec_cycles(c, ready_at[c]);
         }
-        stats.set_overall_bus_stats(overall_bus.total_data_bytes, overall_bus.invalidation_broadcasts);
+        stats.set_overall_bus_stats(overall_bus.total_data_bytes, overall_bus.invalidation_or_update_broadcasts);
     }
 
     void print_results(bool json) const
