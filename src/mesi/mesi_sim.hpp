@@ -9,8 +9,8 @@
 #include <iomanip>
 #include <cassert>
 #include <cstdint>
-#include "mesi_bus.hpp"
-#include "mesi_cache.hpp"
+#include "../bus.hpp"
+#include "mesi_protocol.hpp"
 #include "../utils/trace_item.hpp"
 #include "../utils/stats.hpp"
 #include "../utils/types.hpp"
@@ -18,10 +18,11 @@
 class MESISim
 {
 private:
-    int B;       // block bytes
-    int N_words; // words per block
+    int block_bytes;     // block bytes
+    int words_per_block; // words per block
+
     Bus overall_bus;
-    L1CacheMESI caches[4];
+    MESIProtocol caches[4];
 
     Stats stats;
 
@@ -34,14 +35,15 @@ private:
 
 public:
     MESISim(int cache_size, int assoc, int block_size)
-        : B(block_size), N_words(block_size / WORD_BYTES),
-          caches{L1CacheMESI(cache_size, assoc, block_size),
-                 L1CacheMESI(cache_size, assoc, block_size),
-                 L1CacheMESI(cache_size, assoc, block_size),
-                 L1CacheMESI(cache_size, assoc, block_size)},
+        : block_bytes(block_size),
+          words_per_block(block_size / WORD_BYTES),
+          caches{MESIProtocol(cache_size, assoc, block_size),
+                 MESIProtocol(cache_size, assoc, block_size),
+                 MESIProtocol(cache_size, assoc, block_size),
+                 MESIProtocol(cache_size, assoc, block_size)},
           stats(cache_size, assoc, block_size)
     {
-        assert(B > 0 && (B % WORD_BYTES) == 0);
+        assert(block_bytes > 0 && (block_bytes % WORD_BYTES) == 0);
     }
 
     void load_traces(const std::vector<std::string> &paths)
@@ -117,7 +119,7 @@ public:
                 ready_at[curr_core],
                 trace_item.op == Operation::Store,
                 trace_item.addr,
-                extra_cycles, bus_bytes, N_words, upgr);
+                extra_cycles, bus_bytes, words_per_block, upgr);
 
             if (acc.hit)
             {
@@ -182,11 +184,11 @@ public:
                                 }
                             }
                         // Compute duration & bytes. We always transfer a block (either from mem or M).
-                        t.data_bytes = B;
-                        t.duration = c2c ? (2 * N_words) : CYCLE_MEM_BLOCK_FETCH;
+                        t.data_bytes = block_bytes;
+                        t.duration = c2c ? (2 * words_per_block) : CYCLE_MEM_BLOCK_FETCH;
 
                         // If we earlier added mem fetch (100) pessimistically, adjust to c2c if needed:
-                        caches[curr_core].adjust_fill_after_source(!c2c, extra_cycles, bus_bytes, N_words);
+                        caches[curr_core].adjust_fill_after_source(!c2c, extra_cycles, bus_bytes, words_per_block);
 
                         uint64_t end = overall_bus.schedule(ready_at[curr_core], t);
 
