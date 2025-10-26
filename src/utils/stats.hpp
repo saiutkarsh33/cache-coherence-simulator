@@ -3,22 +3,23 @@
 #include <iostream>
 #include <iomanip>
 #include <algorithm>
+#include <string>
 #include "types.hpp"
 #include "trace_item.hpp"
 
 struct CoreStats
 {
-    u64 exec_cycles = 0;    // time at end
-    u64 compute_cycles = 0; // cycles spent in computation (non-memory)
-    u64 idle_cycles = 0;    // cycles spent waiting for cache/memory
+    u64 exec_cycles = 0;
+    u64 compute_cycles = 0;
+    u64 idle_cycles = 0;
 
     u64 loads = 0;
     u64 stores = 0;
     u64 hits = 0;
     u64 misses = 0;
 
-    u64 private_accesses = 0; // accesses to private (E/M) blocks
-    u64 shared_accesses = 0;  // accesses to shared (S) blocks
+    u64 private_accesses = 0;
+    u64 shared_accesses = 0;
 };
 
 class Stats
@@ -26,33 +27,58 @@ class Stats
 private:
     std::vector<CoreStats> st;
 
-    // Overall timing and bus stats
     u64 overall_exec = 0;
     u64 overall_bus_total_data_bytes = 0;
-    u64 overall_bus_invalidations_or_updates = 0; // TODO: separate invalidations and updates.
+    u64 overall_bus_invalidations_or_updates = 0;
 
-    // Cache config
     int block_size;
     int cache_size;
     int association;
-
     std::string protocol_name;
+
+    // ────────────────────────────────
+    // Utility: print comma-separated array of per-core values
+    template <typename T>
+    void print_array_json(const std::string &key, const std::vector<T> &vals, bool comma = true) const
+    {
+        std::cout << "  \"" << key << "\": [";
+        for (size_t i = 0; i < vals.size(); ++i)
+        {
+            std::cout << vals[i];
+            if (i < vals.size() - 1)
+            {
+                std::cout << ",";
+            }
+        }
+        std::cout << "]" << (comma ? ",\n" : "\n");
+    }
+
+    // Utility: extract per-core metric as vector
+    template <typename F>
+    std::vector<u64> collect_metric(F getter) const
+    {
+        std::vector<u64> result;
+        result.reserve(st.size());
+        for (const auto &c : st)
+        {
+            result.push_back(getter(c));
+        }
+        return result;
+    }
 
 public:
     Stats(int cache_size, int assoc, int block_size, std::string protocol_name)
         : cache_size(cache_size),
           association(assoc),
           block_size(block_size),
-          protocol_name(protocol_name)
+          protocol_name(std::move(protocol_name))
     {
-        int cores = 4;
-        st.assign(cores, CoreStats{});
+        st.assign(4, CoreStats{});
     }
 
-    void set_protocol_name(const std::string &name)
-    {
-        protocol_name = name;
-    }
+    // ────────────────────────────────
+    // Data collection methods
+    void set_protocol_name(const std::string &name) { protocol_name = name; }
 
     void set_overall_bus_stats(u64 total_data_bytes, u64 invalidation_or_update_broadcasts)
     {
@@ -79,34 +105,16 @@ public:
             st[core].loads++;
     }
 
-    void increment_hits(int core)
-    {
-        st[core].hits++;
-    }
+    void increment_hits(int core) { st[core].hits++; }
+    void increment_misses(int core) { st[core].misses++; }
+    void increment_idle_cycles(int core, int cycles) { st[core].idle_cycles += cycles; }
+    void increment_private_access(int core) { st[core].private_accesses++; }
+    void increment_shared_access(int core) { st[core].shared_accesses++; }
 
-    void increment_misses(int core)
-    {
-        st[core].misses++;
-    }
-
-    void increment_idle_cycles(int core, int cycles)
-    {
-        st[core].idle_cycles += cycles;
-    }
-
-    void increment_private_access(int core)
-    {
-        st[core].private_accesses++;
-    }
-
-    void increment_shared_access(int core)
-    {
-        st[core].shared_accesses++;
-    }
-
-    // Core-level getters for easy reporting
     const CoreStats &get_core_stats(int core) const { return st[core]; }
 
+    // ────────────────────────────────
+    // Output
     void print_results(bool json) const
     {
         if (json)
@@ -114,54 +122,28 @@ public:
             std::cout << std::fixed << std::setprecision(2);
             std::cout << "{\n";
             std::cout << "  \"overall_execution_cycles\": " << overall_exec << ",\n";
-            std::cout << "  \"per_core_execution_cycles\": [";
-            for (int i = 0; i < 4; ++i)
-                std::cout << st[i].exec_cycles << (i < 3 ? "," : "");
-            std::cout << "],\n";
 
-            std::cout << "  \"per_core_compute_cycles\": [";
-            for (int i = 0; i < 4; ++i)
-                std::cout << st[i].compute_cycles << (i < 3 ? "," : "");
-            std::cout << "],\n";
-
-            std::cout << "  \"per_core_loads\": [";
-            for (int i = 0; i < 4; ++i)
-                std::cout << st[i].loads << (i < 3 ? "," : "");
-            std::cout << "],\n";
-
-            std::cout << "  \"per_core_stores\": [";
-            for (int i = 0; i < 4; ++i)
-                std::cout << st[i].stores << (i < 3 ? "," : "");
-            std::cout << "],\n";
-
-            std::cout << "  \"per_core_idle_cycles\": [";
-            for (int i = 0; i < 4; ++i)
-                std::cout << st[i].idle_cycles << (i < 3 ? "," : "");
-            std::cout << "],\n";
-
-            std::cout << "  \"per_core_hits\": [";
-            for (int i = 0; i < 4; ++i)
-                std::cout << st[i].hits << (i < 3 ? "," : "");
-            std::cout << "],\n";
-
-            std::cout << "  \"per_core_misses\": [";
-            for (int i = 0; i < 4; ++i)
-                std::cout << st[i].misses << (i < 3 ? "," : "");
-            std::cout << "],\n";
-
-            std::cout << "  \"per_core_private_accesses\": [";
-            for (int i = 0; i < 4; ++i)
-                std::cout << st[i].private_accesses << (i < 3 ? "," : "");
-            std::cout << "],\n";
-
-            std::cout << "  \"per_core_shared_accesses\": [";
-            for (int i = 0; i < 4; ++i)
-                std::cout << st[i].shared_accesses << (i < 3 ? "," : "");
-            std::cout << "],\n";
+            print_array_json("per_core_execution_cycles", collect_metric([](const CoreStats &c)
+                                                                         { return c.exec_cycles; }));
+            print_array_json("per_core_compute_cycles", collect_metric([](const CoreStats &c)
+                                                                       { return c.compute_cycles; }));
+            print_array_json("per_core_loads", collect_metric([](const CoreStats &c)
+                                                              { return c.loads; }));
+            print_array_json("per_core_stores", collect_metric([](const CoreStats &c)
+                                                               { return c.stores; }));
+            print_array_json("per_core_idle_cycles", collect_metric([](const CoreStats &c)
+                                                                    { return c.idle_cycles; }));
+            print_array_json("per_core_hits", collect_metric([](const CoreStats &c)
+                                                             { return c.hits; }));
+            print_array_json("per_core_misses", collect_metric([](const CoreStats &c)
+                                                               { return c.misses; }));
+            print_array_json("per_core_private_accesses", collect_metric([](const CoreStats &c)
+                                                                         { return c.private_accesses; }));
+            print_array_json("per_core_shared_accesses", collect_metric([](const CoreStats &c)
+                                                                        { return c.shared_accesses; }));
 
             std::cout << "  \"bus_data_traffic_bytes\": " << overall_bus_total_data_bytes << ",\n";
             std::cout << "  \"bus_invalidations_or_updates\": " << overall_bus_invalidations_or_updates << ",\n";
-
             std::cout << "  \"protocol\": \"" << protocol_name << "\",\n";
             std::cout << "  \"config\": {\"cache_size\": " << cache_size
                       << ", \"associativity\": " << association
@@ -175,20 +157,39 @@ public:
             std::cout << "Bus Data Traffic (bytes): " << overall_bus_total_data_bytes << "\n";
             std::cout << "Invalidation/Update Broadcasts: " << overall_bus_invalidations_or_updates << "\n\n";
 
-            for (int i = 0; i < 4; i++)
+            // Display results for all cores together in table form
+            std::cout << std::left
+                      << std::setw(6) << "Core"
+                      << std::setw(14) << "Exec"
+                      << std::setw(14) << "Compute"
+                      << std::setw(12) << "Idle"
+                      << std::setw(10) << "Loads"
+                      << std::setw(10) << "Stores"
+                      << std::setw(10) << "Hits"
+                      << std::setw(10) << "Misses"
+                      << std::setw(14) << "Private"
+                      << std::setw(14) << "Shared"
+                      << "\n";
+
+            std::cout << std::string(110, '-') << "\n";
+
+            for (int i = 0; i < static_cast<int>(st.size()); ++i)
             {
                 const auto &c = st[i];
-                std::cout << "Core " << i << ":\n";
-                std::cout << "  Execution cycles: " << c.exec_cycles << "\n";
-                std::cout << "  Compute cycles:   " << c.compute_cycles << "\n";
-                std::cout << "  Idle cycles:      " << c.idle_cycles << "\n";
-                std::cout << "  Loads:            " << c.loads << "\n";
-                std::cout << "  Stores:           " << c.stores << "\n";
-                std::cout << "  Hits:             " << c.hits << "\n";
-                std::cout << "  Misses:           " << c.misses << "\n";
-                std::cout << "  Private accesses: " << c.private_accesses << "\n";
-                std::cout << "  Shared accesses:  " << c.shared_accesses << "\n\n";
+                std::cout << std::left
+                          << std::setw(6) << i
+                          << std::setw(14) << c.exec_cycles
+                          << std::setw(14) << c.compute_cycles
+                          << std::setw(12) << c.idle_cycles
+                          << std::setw(10) << c.loads
+                          << std::setw(10) << c.stores
+                          << std::setw(10) << c.hits
+                          << std::setw(10) << c.misses
+                          << std::setw(14) << c.private_accesses
+                          << std::setw(14) << c.shared_accesses
+                          << "\n";
             }
+            std::cout << "\n";
         }
     }
 };
