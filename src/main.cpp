@@ -10,8 +10,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include "coherence_sim.hpp"
 #include "utils/utils.hpp"
-#include "mesi/mesi_sim.hpp"
 
 int main(int argc, char *argv[])
 {
@@ -19,19 +19,17 @@ int main(int argc, char *argv[])
     if (argc < 3)
     {
         std::cerr << "Usage: " << argv[0]
-                  << " <protocol: MESI|Dragon> <input_base_or_any_0.data> [<cache_size> <associativity> <block_size>] [--json]\n";
-        return 2;
-    }
-    std::string protocol = argv[1];
-    if (protocol != "MESI" && protocol != "Dragon")
-    {
-        std::cerr << "Invalid protocol: " << protocol << ".\n"
-                  << "Protocol must be MESI or Dragon.\n ";
+                  << " <protocol: MESI|Dragon|Hybrid> <input_base_or_any_0.data> [<cache_size> <associativity> <block_size>] [--json]\n";
         return 2;
     }
 
-    // File inputs
+    // Parse protocol: accepted: MESI/Dragon/Hybrid
+    std::string protocol = argv[1];
+
+    // Parse file inputs.
+    // All 0..3.data input files must be present.
     std::string input = argv[2];
+    auto paths = resolve_four(input);
 
     // Other arguments
     const int cache_size = std::stoi(argv[3]);
@@ -47,24 +45,11 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Parse the input file.
-    // All 0..3.data input files must be present.
-    auto paths = resolve_four(input);
-
-    // Determine which protocol to use.
-    if (protocol == "MESI")
-    {
-        MESISim sim(cache_size, assoc, block_size);
-        sim.load_traces(paths);
-        sim.run();
-        sim.print_results(json_output);
-        return 0;
-    }
-    if (protocol == "DRAGON")
-    {
-        std::cerr << "DRAGON protocol not implemented.\n";
-        return 0;
-    }
+    // CacheSim determines which protocol to use.
+    CacheSim sim(protocol, cache_size, assoc, block_size);
+    sim.load_traces(paths);
+    sim.run();
+    sim.print_results(json_output);
 
     return 0;
 }
