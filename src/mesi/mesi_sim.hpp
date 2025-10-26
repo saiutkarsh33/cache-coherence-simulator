@@ -22,7 +22,7 @@ private:
     int words_per_block; // words per block
 
     Bus overall_bus;
-    MESIProtocol caches[4];
+    MESIProtocol caches[NUM_OF_CORES];
 
     Stats stats;
 
@@ -48,14 +48,14 @@ public:
 
     void load_traces(const std::vector<std::string> &paths)
     {
-        if (paths.size() != 4)
+        if (paths.size() != NUM_OF_CORES)
         {
-            std::cerr << "need 4 traces\n";
+            std::cerr << "need " << NUM_OF_CORES << " traces\n";
             std::exit(2);
         }
 
         traces.resize(4);
-        for (int c = 0; c < 4; c++)
+        for (int c = 0; c < NUM_OF_CORES; c++)
         {
             traces[c] = parse_trace(paths[c]);
         }
@@ -65,8 +65,8 @@ public:
     void run()
     {
         // Per-core bookkeeping
-        ready_at.assign(4, 0);
-        cur_idx.assign(4, 0);
+        ready_at.assign(NUM_OF_CORES, 0);
+        cur_idx.assign(NUM_OF_CORES, 0);
         overall_bus = Bus{};
 
         // Event-loop: choose next core to issue based on which is ready first.
@@ -75,7 +75,7 @@ public:
             // Determine which core to use.
             int next_core = -1;
             u64 next_time = UINT64_MAX;
-            for (int c = 0; c < 4; c++)
+            for (int c = 0; c < NUM_OF_CORES; c++)
             {
                 int max_idx = traces[c].size();
 
@@ -154,7 +154,7 @@ public:
                         // Simulate bus arbitration
                         u64 end = overall_bus.schedule(ready_at[curr_core], t);
                         // Apply snoop to others
-                        for (int k = 0; k < 4; k++)
+                        for (int k = 0; k < NUM_OF_CORES; k++)
                             if (k != curr_core)
                                 caches[k].on_busupgr(trace_item.addr, end);
 
@@ -172,7 +172,7 @@ public:
                         bool any_inval = false;
 
                         // First pass snoop to determine suppliers.
-                        for (int k = 0; k < 4; k++)
+                        for (int k = 0; k < NUM_OF_CORES; k++)
                             if (k != curr_core)
                             {
                                 if (t.op == BusOp::BusRd)
@@ -222,7 +222,7 @@ public:
         }
 
         // Update stats with final exec times.
-        for (int c = 0; c < 4; c++)
+        for (int c = 0; c < NUM_OF_CORES; c++)
         {
             stats.set_exec_cycles(c, ready_at[c]);
         }

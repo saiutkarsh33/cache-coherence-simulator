@@ -20,3 +20,4 @@ static constexpr int DEFAULT_BLOCK_SIZE = 32;   // 32 byte block size
 // Trace files configurations
 // -------------------
 static const std::string DEFAULT_TRACES_PATH = "./tests/benchmark_traces/"; // Path to where the traces are stored.
+static constexpr int NUM_OF_CORES = 4;                                      // The number of cores in the simulation.

@@ -73,7 +73,7 @@ public:
           block_size(block_size),
           protocol_name(std::move(protocol_name))
     {
-        st.assign(4, CoreStats{});
+        st.assign(NUM_OF_CORES, CoreStats{});
     }
 
     // ────────────────────────────────

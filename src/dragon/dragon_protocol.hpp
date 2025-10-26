@@ -10,7 +10,7 @@
 // Dragon states: I, Sc (shared-clean), Sm (shared-modified), E (exclusive clean), M (modified)
 enum class DragonState
 {
-    I, // Invalid state is used to represent that the cache line is not present.
+    I, // Invalid state is used to represent that the cache line is not present, just for internal convenience.
     Sc,
     Sm,
     E,
@@ -126,10 +126,14 @@ public:
         auto *ln = find(idx, tag, w);
         SnoopResult r{};
         if (!ln)
+        {
             return r;
+        }
         r.had_line = true;
         if (ln->state == DragonState::M)
+        {
             r.supplied_block = true;
+        }
         // Dragon normally avoids invalidation; BusRdX forces invalidation
         ln->valid = false;
         ln->dirty = false;
@@ -246,7 +250,9 @@ public:
     void adjust_fill_after_source(bool from_mem, int &service_extra_cycles, int &bus_data_bytes, int block_words) const
     {
         if (from_mem)
+        {
             return;
+        }
         service_extra_cycles -= CYCLE_MEM_BLOCK_FETCH;
         service_extra_cycles += 2 * block_words;
     }

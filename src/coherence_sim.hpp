@@ -16,7 +16,7 @@
 #include "utils/stats.hpp"
 #include "utils/types.hpp"
 
-// Generalized 4-core simulator
+// Generalized 4-core simulator (NUM_OF_CORES = 4).
 class CacheSim
 {
 private:
@@ -42,9 +42,9 @@ public:
     {
         assert(block_bytes > 0 && (block_bytes % WORD_BYTES) == 0);
 
-        // create four protocol instances (one per core)
-        caches.reserve(4);
-        for (int i = 0; i < 4; ++i)
+        // create NUM_OF_CORES protocol instances (one per core)
+        caches.reserve(NUM_OF_CORES);
+        for (int i = 0; i < NUM_OF_CORES; ++i)
         {
             caches.push_back(make_protocol(protocol_name, cache_size_, assoc_, block_size));
         }
@@ -52,13 +52,13 @@ public:
 
     void load_traces(const std::vector<std::string> &paths)
     {
-        if (paths.size() != 4)
+        if (paths.size() != NUM_OF_CORES)
         {
-            std::cerr << "need 4 traces\n";
+            std::cerr << "need " << NUM_OF_CORES << " traces\n";
             std::exit(2);
         }
-        traces.resize(4);
-        for (int c = 0; c < 4; c++)
+        traces.resize(NUM_OF_CORES);
+        for (int c = 0; c < NUM_OF_CORES; c++)
         {
             traces[c] = parse_trace(paths[c]);
         }
@@ -67,15 +67,15 @@ public:
     // run handles running the event loop on operations.
     void run()
     {
-        ready_at.assign(4, 0);
-        cur_idx.assign(4, 0);
+        ready_at.assign(NUM_OF_CORES, 0);
+        cur_idx.assign(NUM_OF_CORES, 0);
         overall_bus = Bus{};
 
         while (true)
         {
             int next_core = -1;
             u64 next_time = UINT64_MAX;
-            for (int c = 0; c < 4; c++)
+            for (int c = 0; c < NUM_OF_CORES; c++)
             {
                 int max_idx = (int)traces[c].size();
                 while (cur_idx[c] < max_idx && traces[c][cur_idx[c]].op == Operation::Other)
@@ -139,7 +139,7 @@ public:
                         t.duration = 1;
                         u64 end = overall_bus.schedule(ready_at[curr_core], t);
                         // apply snoop
-                        for (int k = 0; k < 4; k++)
+                        for (int k = 0; k < NUM_OF_CORES; k++)
                         {
                             if (k != curr_core)
                             {
@@ -156,9 +156,8 @@ public:
                     {
                         bool c2c = false;
                         bool any_inval = false;
-                        for (int k = 0; k < 4; k++)
+                        for (int k = 0; k < NUM_OF_CORES; k++)
                         {
-
                             if (k != curr_core)
                             {
                                 if (t.op == BusOp::BusRd)
@@ -209,7 +208,7 @@ public:
             cur_idx[curr_core]++;
         }
 
-        for (int c = 0; c < 4; c++)
+        for (int c = 0; c < NUM_OF_CORES; c++)
         {
             stats.set_exec_cycles(c, ready_at[c]);
         }

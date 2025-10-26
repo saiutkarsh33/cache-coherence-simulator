@@ -22,6 +22,7 @@ inline std::unique_ptr<CoherenceProtocol> make_protocol(const std::string &name,
     else if (name == "Hybrid" || name == "hybrid")
     {
         auto h = std::make_unique<HybridProtocol>(cache_size, assoc, block_size);
+
         // optionally configure threshold here
         h->set_threshold(2);
         return h;
