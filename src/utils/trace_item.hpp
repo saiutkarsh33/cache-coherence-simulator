@@ -1,8 +1,7 @@
-#ifndef TRACE_ITEM_HPP
-#define TRACE_ITEM_HPP
-
+#pragma once
 #include <string>
 #include "types.hpp"
+#include "utils.hpp"
 
 // Operation defines the possible operations the input can take.
 enum class Operation
@@ -85,5 +84,3 @@ static std::vector<TraceItem> parse_trace(const std::string &path)
 
     return out;
 }
-
-#endif

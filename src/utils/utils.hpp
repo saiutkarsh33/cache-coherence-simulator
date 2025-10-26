@@ -1,8 +1,5 @@
 // utils.hpp contain useful functions for parsing the input file.
-
-#ifndef UTILS_HPP
-#define UTILS_HPP
-
+#pragma once
 #include <string>
 #include <iostream>
 #include <algorithm>
@@ -120,5 +117,3 @@ static std::vector<std::string> resolve_four(const std::string &input)
     std::cerr << "Provide e.g.: ./coherence MESI " << DEFAULT_TRACES_PATH << "bodytrack_0.data 4096 2 32\n";
     std::exit(2);
 }
-
-#endif

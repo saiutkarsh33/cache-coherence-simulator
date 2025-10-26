@@ -1,6 +1,6 @@
 # Cache Coherence Simulator
 
-This is an implementation of a cache coherence simulator supporting both MESI and DRAGON protocols using traces, in C++ programming language (C++ 17).
+This is an implementation of a cache coherence simulator supporting both MESI and DRAGON protocols using traces, in C++ programming language (C++17).
 
 Refer to the `src/mesi` folder for the instructions for building and running a MESI specific implementation.
 

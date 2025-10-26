@@ -1,6 +1,4 @@
-#ifndef CACHE_CPP
-#define CACHE_CPP
-
+#pragma once
 #include <vector>
 #include <iostream>
 #include "../utils/types.hpp"
@@ -201,5 +199,3 @@ private:
     u64 shared_accesses_;
     u64 writebacks_;
 };
-
-#endif

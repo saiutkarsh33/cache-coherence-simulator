@@ -1,9 +1,7 @@
 // stats.hpp contain useful classes for calculating and printing output statistics
 // for multiple cores.
 
-#ifndef STATS_HPP
-#define STATS_HPP
-
+#pragma once
 #include <vector>
 #include <iostream>
 #include "types.hpp"
@@ -120,5 +118,3 @@ public:
         }
     }
 };
-
-#endif
