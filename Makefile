@@ -19,6 +19,10 @@ clean:
 run: coherence
 	./scripts/run_benchmarks.sh
 
-# Extensive testing
+# Run tests.
+test: coherence
+	./scripts/run_tests.sh
+
+# Extensive testing.
 sweep: coherence
 	./scripts/sweep_part1.sh

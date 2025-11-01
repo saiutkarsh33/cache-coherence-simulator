@@ -60,31 +60,35 @@ static std::vector<TraceItem> parse_trace(const std::string &path)
     }
 
     std::vector<TraceItem> out;
-    std::string label, value;
-    while (in >> label >> value)
+    out.reserve(1'000'000); // optional
+
+    std::string line;
+    while (std::getline(in, line))
     {
-        Operation op;
-        try
+        // trim trailing spaces and carriage return
+        line.erase(line.find_last_not_of(" \r\n") + 1);
+        if (line.empty())
+            continue;
+
+        auto pos = line.find_first_of(" \t");
+        if (pos == std::string::npos)
         {
-            op = parse_operation_sv(label);
-        }
-        catch (...)
-        {
-            std::cerr << "Bad label in " << path << "\n";
+            std::cerr << "Bad line in " << path << ": '" << line << "'\n";
             std::exit(2);
         }
 
+        std::string_view label(line.data(), pos);
+        std::string_view value(line.data() + pos + 1, line.size() - pos - 1);
+
+        Operation op = parse_operation_sv(label);
+
         TraceItem it;
         it.op = op;
+        u32 parsed_val = parse_auto_base_sv(value);
         if (op == Operation::Other)
-        {
-            it.cycles = parse_auto_base_sv(value);
-        }
+            it.cycles = parsed_val;
         else
-        {
-            // memory access
-            it.addr = (u32)parse_auto_base_sv(value);
-        }
+            it.addr = parsed_val;
 
         out.push_back(it);
     }

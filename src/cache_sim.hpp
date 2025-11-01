@@ -27,13 +27,14 @@ private:
 
     // Finds the next core to process,
     // auto advancing through compute operations.
+    // Returns -1 if no core is found.
     int find_ready_memop_core()
     {
         int next_core = -1;
         u64 next_time = UINT64_MAX;
         for (int c = 0; c < NUM_OF_CORES; c++)
         {
-            u64 max_idx = (u64)traces[c].size();
+            auto max_idx = traces[c].size();
 
             // Advance through compute operations (Operation::Other)
             while (cur_idx[c] < max_idx && traces[c][cur_idx[c]].op == Operation::Other)
@@ -104,6 +105,8 @@ public:
             caches[curr_core]->access_processor_cache(
                 trace_item.op == Operation::Store,
                 trace_item.addr);
+
+            cur_idx[curr_core]++;
         }
     }
 };
