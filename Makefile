@@ -4,7 +4,7 @@ CXXFLAGS := -O2 -std=c++17 -Wall -Wextra -pedantic
 all: build
 
 # Unzip the benchmarks
-extract: benchmarks
+extract: tests/benchmark
 	./scripts/extract_traces.sh
 
 # Compile C++ files

@@ -4,6 +4,10 @@ This is an implementation of a cache coherence simulator supporting both MESI an
 
 Refer to the `src/mesi` folder for the instructions for building and running a MESI specific implementation.
 
+## Design Architecture
+
+<!-- TODO -->
+
 ## Setup
 
 1. Build the cache coherence simulator:
@@ -68,30 +72,8 @@ Running the cache coherence simulator gives the following output:
 8. Invalidations/Updates
 9. Private vs Shared
 
-### Single core sample runs
+## Assumptions
 
-```bash
-> ./coherence MESI ./tests/benchmark_traces/bodytrack_0.data 1024 1 16
-
-Overall Execution Cycles: 75419786
-Per-core execution cycles: [75419786]
-Compute cycles per core:  [17729254]
-Loads/stores per core:    2380720 / 889412
-Idle cycles per core:     [54420400]
-Hits/misses per core:     2845917 / 424215
-Bus data traffic (bytes): 8707264
-Invalidations/Updates:    0
-Private vs Shared:        3270132 / 0
-
-> ./coherence MESI ./tests/benchmark_traces/bodytrack_0.data 4096 2 32
-
-Overall Execution Cycles: 42034386
-Per-core execution cycles: [42034386]
-Compute cycles per core:  [17729254]
-Loads/stores per core:    2380720 / 889412
-Idle cycles per core:     [21035000]
-Hits/misses per core:     3085991 / 184141
-Bus data traffic (bytes): 6731200
-Invalidations/Updates:    0
-Private vs Shared:        3270132 / 0
-```
+- When deciding which core to pick for bus transactions, ties are broken by the pick the smaller core number.
+- Bus transactions occur one at a time, we wait if the bus is busy until it is the core's turn to broadcast the bus transaction.
+<!-- TODO -->

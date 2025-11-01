@@ -9,7 +9,7 @@ OUTDIR="./tests/out"           # output folder
 CACHE_SIZE=4096                # bytes
 ASSOC=2
 BLOCK=32
-PROTOCOLS="MESI Dragon Hybrid" # space-separated list of protocols
+PROTOCOLS="MESI Dragon" # space-separated list of protocols
 # ----------------------------
 
 # Create output directory if it doesn't exist

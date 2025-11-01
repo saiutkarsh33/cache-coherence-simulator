@@ -1,4 +1,5 @@
-// main.cpp — CS4223 entrypoint.
+// CS4223 cache coherence simulator entrypoint.
+//
 // CLI
 //   ./coherence <protocol> <input_base_or_any_0.data> <cache_size> <associativity> <block_size> [--json]
 //
@@ -10,20 +11,21 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include "coherence_sim.hpp"
+#include "cache_sim.hpp"
 #include "utils/utils.hpp"
 
 int main(int argc, char *argv[])
 {
     // Parse input arguments.
+    // Support variable number of arguments (with default values).
     if (argc < 3)
     {
         std::cerr << "Usage: " << argv[0]
-                  << " <protocol: MESI|Dragon|Hybrid> <input_base_or_any_0.data> [<cache_size> <associativity> <block_size>] [--json]\n";
+                  << " <protocol: MESI|Dragon> <input_base_or_any_0.data> [<cache_size> <associativity> <block_size>] [--json]\n";
         return 2;
     }
 
-    // Parse protocol: accepted: MESI/Dragon/Hybrid
+    // Parse protocol: accepted: MESI/Dragon.
     std::string protocol = argv[1];
 
     // Parse file inputs.
@@ -31,11 +33,12 @@ int main(int argc, char *argv[])
     std::string input = argv[2];
     auto paths = resolve_four(input);
 
-    // Other arguments
+    // Other arguments.
     const int cache_size = std::stoi(argv[3]);
     const int assoc = std::stoi(argv[4]);
     const int block_size = std::stoi(argv[5]);
 
+    // Check for JSON output flag.
     bool json_output = false;
     for (int i = 6; i < argc; i++)
     {
@@ -45,11 +48,17 @@ int main(int argc, char *argv[])
         }
     }
 
-    // CacheSim determines which protocol to use.
+    // Initialize the stats recorder.
+    Stats::initialize(cache_size, assoc, block_size, protocol);
+
+    // CacheSim determines which protocol to use,
+    // then loads and simulates using the traces provided.
     CacheSim sim(protocol, cache_size, assoc, block_size);
     sim.load_traces(paths);
     sim.run();
-    sim.print_results(json_output);
+
+    // Output the results.
+    Stats::print_results(json_output);
 
     return 0;
 }

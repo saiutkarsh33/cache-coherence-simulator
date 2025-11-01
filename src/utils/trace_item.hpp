@@ -1,5 +1,8 @@
 #pragma once
 #include <string>
+#include <fstream>
+#include <iostream>
+#include <charconv>
 #include "types.hpp"
 #include "utils.hpp"
 
@@ -11,25 +14,29 @@ enum class Operation
     Other,
 };
 
-static Operation parse_operation(std::string label)
+static Operation parse_operation_sv(std::string_view label)
 {
-    switch (std::stoi(label))
+    int value = 0;
+    auto [ptr, ec] = std::from_chars(label.data(), label.data() + label.size(), value);
+    if (ec != std::errc{} || ptr != label.data() + label.size())
+    {
+        std::cerr << "Invalid label value: " << label << "\n";
+        std::exit(2);
+    }
+
+    switch (value)
     {
     case 0:
         return Operation::Load;
-        break;
     case 1:
         return Operation::Store;
-        break;
     case 2:
         return Operation::Other;
-        break;
     default:
-        std::cerr << "Invalid label value: " << label << ".\n";
+        std::cerr << "Invalid label value: " << label << "\n";
         std::exit(2);
     }
 }
-
 // Each TraceItem represents a single line from the input.
 struct TraceItem
 {
@@ -59,7 +66,7 @@ static std::vector<TraceItem> parse_trace(const std::string &path)
         Operation op;
         try
         {
-            op = parse_operation(label);
+            op = parse_operation_sv(label);
         }
         catch (...)
         {
@@ -71,12 +78,12 @@ static std::vector<TraceItem> parse_trace(const std::string &path)
         it.op = op;
         if (op == Operation::Other)
         {
-            it.cycles = parse_auto_base(value);
+            it.cycles = parse_auto_base_sv(value);
         }
         else
         {
             // memory access
-            it.addr = (u32)parse_auto_base(value);
+            it.addr = (u32)parse_auto_base_sv(value);
         }
 
         out.push_back(it);

@@ -3,46 +3,30 @@
 #include "bus.hpp"
 #include "utils/types.hpp"
 
-// Generic results returned by snoop calls and processor access
-struct SnoopResult
-{
-    bool had_line = false;
-    bool supplied_block = false; // supplied data (cache->cache)
-    bool invalidated = false;    // the snoop caused invalidation
-};
-
-enum class AccessType
-{
-    Private,
-    Shared,
-    Invalid
-};
-
-struct AccessResult
-{
-    bool hit = false;
-    bool needs_bus = false;
-    bool is_write = false;
-    BusOp busop = BusOp::None;
-    bool data_from_mem = true; // pessimistic default; simulator may adjust to c2c
-    bool eviction_writeback = false;
-};
-
-// Abstract base class for coherence protocol implementations
+// Abstract base class for coherence protocol implementations.
+// Coherence protocol implemented like a state machine.
+//
+// Handle processor events: coherence state transitions, snoop handling.
 class CoherenceProtocol
 {
+private:
 public:
     virtual ~CoherenceProtocol() = default;
 
-    // Called by simulator when processor issues an access
-    virtual AccessResult pr_access(u64 tick, bool store, u32 addr,
-                                   int &service_extra_cycles, int &bus_data_bytes,
-                                   int block_words, bool &upgrade_only) = 0;
+    virtual int parse_processor_event(bool is_write, CacheLine *cache_line) = 0;
 
-    virtual AccessType classify_access_type(u32 addr) const = 0;
+    // Handle processor-initiated access for the cache line.
+    // Returns true if the cache line is shared, otherwise false.
+    virtual bool on_processor_event(int processor_event, CacheLine *cache_line) = 0;
 
-    // Snooping handlers (simulator will call appropriate handler depending on bus op)
-    virtual SnoopResult on_busrd(u32 addr, u64 now) = 0;
-    virtual SnoopResult on_busrdx(u32 addr, u64 now) = 0;
-    virtual SnoopResult on_busupgr(u32 addr, u64 now) = 0;
+    // Handle snoop events (bus transactions) from the bus,
+    // which originate from another core.
+    //
+    // Assume that snoop hits on a modified line are served via cache-to-cache transfer,
+    // rather than immediately writing back to main memory.
+    //
+    // Snooping transactions are non blocking, happen instantanesouly,
+    // and do not advance exec time for the core.
+    // As such, we do not update LRU time for snoop operations (core-centric LRU).
+    virtual void on_snoop_event(int bus_transaction, CacheLine *cache_line) = 0;
 };

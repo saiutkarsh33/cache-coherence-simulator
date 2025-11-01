@@ -1,259 +1,160 @@
-// mesi_protocol.hpp
 #pragma once
-#include <vector>
-#include <cstdint>
-#include <cassert>
-#include "../bus.hpp"
 #include "../coherence_protocol.hpp"
-#include "../utils/types.hpp"
-#include "../utils/constants.hpp"
-#include "../utils/utils.hpp"
-
-// MESI states
-enum class MESIState
-{
-    I,
-    S,
-    E,
-    M
-};
-
-struct CacheLine
-{
-    u64 lru = 0;
-    u32 tag = 0;
-    bool valid = false;
-    bool dirty = false;
-    MESIState state = MESIState::I;
-};
-
-struct CacheSet
-{
-    std::vector<CacheLine> ways;
-    explicit CacheSet(int a) : ways(a) {}
-};
+#include "../utils/stats.hpp"
 
 class MESIProtocol : public CoherenceProtocol
 {
 private:
-    int size_bytes, assoc, block_bytes, sets_count;
-    u64 access_clock = 0;
-    std::vector<CacheSet> sets;
+    int curr_core;
+    int block_bytes;
+    Bus &bus;
+
+    enum MESIState
+    {
+        M,
+        E,
+        S,
+        I,
+    };
+
+    enum MESIPrEvent
+    {
+        PrWr,
+        PrRd,
+    };
+
+    enum MESIBusTxn
+    {
+        NoOp,
+        BusRdX,
+        BusRd,
+    };
 
 public:
-    MESIProtocol(int size_b, int assoc_, int block_b)
-        : size_bytes(size_b), assoc(assoc_), block_bytes(block_b)
+    MESIProtocol(int curr_core, int block_bytes, Bus &bus)
+        : curr_core(curr_core),
+          block_bytes(block_bytes),
+          bus(bus) {};
+
+    int parse_processor_event(bool is_write, CacheLine *cache_line)
     {
-        assert(size_b > 0 && assoc_ > 0 && block_b > 0);
-        assert((size_b % (assoc_ * block_b)) == 0);
-        sets_count = size_b / (assoc_ * block_b);
-        sets.reserve(sets_count);
-        for (int i = 0; i < sets_count; i++)
-            sets.emplace_back(assoc_);
+        return is_write ? MESIPrEvent::PrWr : MESIPrEvent::PrRd;
     }
 
-    CacheLine *find(int idx, u32 tag, int &way)
+    bool on_processor_event(int processor_event, CacheLine *cache_line) override
     {
-        auto &v = sets[idx].ways;
-        for (int w = 0; w < assoc; w++)
+        bool is_shared = false;
+        switch (cache_line->state)
         {
-            auto &ln = v[w];
-            if (ln.valid && ln.tag == tag)
+        case MESIState::M:
+            break;
+
+        case MESIState::E:
+            switch (processor_event)
             {
-                way = w;
-                return &v[w];
+            case MESIPrEvent::PrWr:
+                cache_line->state = MESIState::M;
+                cache_line->dirty = true;
+                break;
             }
-        }
-        way = -1;
-        return nullptr;
-    }
+            break;
 
-    CacheLine *victim(int idx, int &way)
-    {
-        auto &v = sets[idx].ways;
-        for (int w = 0; w < assoc; w++)
-            if (!v[w].valid)
+        case MESIState::S:
+            switch (processor_event)
             {
-                way = w;
-                return &v[w];
+            case MESIPrEvent::PrWr:
+                is_shared = bus.trigger_bus_broadcast(curr_core, MESIBusTxn::BusRdX, cache_line->addr);
+                cache_line->state = MESIState::M;
+                cache_line->dirty = true;
+                break;
             }
-        int vw = 0;
-        u64 best = v[0].lru;
-        for (int w = 1; w < assoc; w++)
-            if (v[w].lru < best)
+            break;
+
+        case MESIState::I:
+            switch (processor_event)
             {
-                best = v[w].lru;
-                vw = w;
+            case MESIPrEvent::PrRd:
+                // We handle adding idle cycles and bus traffic bytes outside this func (since cache miss).
+                is_shared = bus.trigger_bus_broadcast(curr_core, MESIBusTxn::BusRd, cache_line->addr);
+                cache_line->state = is_shared ? MESIState::S : MESIState::E;
+                break;
+            case MESIPrEvent::PrWr:
+                // We handle adding idle cycles and bus traffic bytes outside this func (since cache miss).
+                is_shared = bus.trigger_bus_broadcast(curr_core, MESIBusTxn::BusRdX, cache_line->addr);
+                cache_line->state = MESIState::M;
+                cache_line->dirty = true;
+                break;
             }
-        way = vw;
-        return &v[vw];
+            break;
+
+        default:
+            std::runtime_error("invalid MESI state");
+            break;
+        }
+
+        return is_shared;
     }
 
-    // Snoop handlers
-    SnoopResult on_busrd(u32 addr, u64 now) override
+    void on_snoop_event(int bus_transaction, CacheLine *cache_line) override
     {
-        auto [idx, tag] = decode_address(addr, block_bytes, sets_count);
-        int w;
-        auto *ln = find(idx, tag, w);
-        SnoopResult r{};
-        if (!ln)
-            return r;
-        r.had_line = true;
-        if (ln->state == MESIState::M)
-        {
-            r.supplied_block = true;
-            ln->state = MESIState::S;
-            ln->dirty = false;
-            ln->lru = now;
-        }
-        else if (ln->state == MESIState::E)
-        {
-            ln->state = MESIState::S;
-            ln->lru = now;
-        }
-        else
-        {
-            ln->lru = now;
-        }
-        return r;
-    }
-
-    SnoopResult on_busrdx(u32 addr, u64 now) override
-    {
-        auto [idx, tag] = decode_address(addr, block_bytes, sets_count);
-        int w;
-        auto *ln = find(idx, tag, w);
-        SnoopResult r{};
-        if (!ln)
-            return r;
-        r.had_line = true;
-        if (ln->state == MESIState::M)
-            r.supplied_block = true;
-        ln->valid = false;
-        ln->dirty = false;
-        ln->state = MESIState::I;
-        ln->lru = now;
-        r.invalidated = true;
-        return r;
-    }
-
-    SnoopResult on_busupgr(u32 addr, u64 now) override
-    {
-        auto [idx, tag] = decode_address(addr, block_bytes, sets_count);
-        int w;
-        auto *ln = find(idx, tag, w);
-        SnoopResult r{};
-        if (!ln)
-            return r;
-        r.had_line = true;
-        if (ln->state == MESIState::S)
-        {
-            ln->valid = false;
-            ln->dirty = false;
-            ln->state = MESIState::I;
-            ln->lru = now;
-            r.invalidated = true;
-        }
-        else
-        {
-            ln->lru = now;
-        }
-        return r;
-    }
-
-    AccessResult pr_access(u64 tick, bool store, u32 addr, int &service_extra_cycles,
-                           int &bus_data_bytes, int block_words, bool &upgrade_only) override
-    {
-        access_clock++;
-        auto [idx, tag] = decode_address(addr, block_bytes, sets_count);
-        int w;
-        CacheLine *ln = find(idx, tag, w);
-
-        service_extra_cycles = 0;
-        bus_data_bytes = 0;
-        upgrade_only = false;
-
-        if (ln)
-        {
-            ln->lru = access_clock;
-            if (!store)
-                return AccessResult{true, false, false, BusOp::None, true, false};
-            // store hit
-            if (ln->state == MESIState::M)
-            {
-                ln->dirty = true;
-                return AccessResult{true, false, true, BusOp::None, true, false};
-            }
-            if (ln->state == MESIState::E)
-            {
-                ln->state = MESIState::M;
-                ln->dirty = true;
-                return AccessResult{true, false, true, BusOp::None, true, false};
-            }
-            if (ln->state == MESIState::S)
-            {
-                upgrade_only = true;
-                return AccessResult{true, true, true, BusOp::BusUpgr, true, false};
-            }
-        }
-
-        // Miss path
-        int vw;
-        auto *vic = victim(idx, vw);
-        bool wb = false;
-        if (vic->valid && vic->dirty)
-        {
-            service_extra_cycles += CYCLE_WRITEBACK_DIRTY;
-            bus_data_bytes += block_bytes;
-            wb = true;
-        }
-        service_extra_cycles += CYCLE_MEM_BLOCK_FETCH; // pessimistic; later adjusted by simulator if c2c
-        bus_data_bytes += block_bytes;
-
-        vic->valid = true;
-        vic->tag = tag;
-        vic->lru = access_clock;
-        if (!store)
-        {
-            vic->state = MESIState::E;
-            vic->dirty = false;
-        }
-        else
-        {
-            vic->state = MESIState::M;
-            vic->dirty = true;
-        }
-
-        return AccessResult{false, true, store, store ? BusOp::BusRdX : BusOp::BusRd, true, wb};
-    }
-
-    AccessType classify_access_type(u32 addr) const override
-    {
-        MESIState s = get_line_state(addr);
-        if (s == MESIState::M || s == MESIState::E)
-            return AccessType::Private;
-        if (s == MESIState::S)
-            return AccessType::Shared;
-        return AccessType::Invalid;
-    }
-
-    void adjust_fill_after_source(bool from_mem, int &service_extra_cycles, int &bus_data_bytes, int block_words) const
-    {
-        if (from_mem)
+        if (!cache_line->valid)
             return;
-        service_extra_cycles -= CYCLE_MEM_BLOCK_FETCH;
-        service_extra_cycles += 2 * block_words;
-    }
 
-    MESIState get_line_state(u32 addr) const
-    {
-        auto [idx, tag] = decode_address(addr, block_bytes, sets_count);
-        const auto &set = sets[idx];
-        for (const auto &line : set.ways)
+        switch (cache_line->state)
         {
-            if (line.valid && line.tag == tag)
-                return line.state;
+        case MESIState::M:
+            // Data flushed via cache-to-cache transfer.
+            Stats::add_bus_traffic_bytes(block_bytes);
+            cache_line->dirty = false;
+            switch (bus_transaction)
+            {
+            case MESIBusTxn::BusRd:
+                cache_line->state = MESIState::S;
+                break;
+            case MESIBusTxn::BusRdX:
+                Stats::incr_bus_invalidations();
+                cache_line->valid = false;
+                cache_line->state = MESIState::I;
+                break;
+            }
+            break;
+
+        case MESIState::E:
+            switch (bus_transaction)
+            {
+            case MESIBusTxn::BusRd:
+                cache_line->state = MESIState::S;
+                break;
+            case MESIBusTxn::BusRdX:
+                Stats::incr_bus_invalidations();
+                cache_line->valid = false;
+                cache_line->state = MESIState::I;
+                break;
+            }
+            break;
+
+        case MESIState::S:
+            switch (bus_transaction)
+            {
+            case MESIBusTxn::BusRd:
+                cache_line->state = MESIState::S;
+                break;
+            case MESIBusTxn::BusRdX:
+                Stats::incr_bus_invalidations();
+                cache_line->valid = false;
+                cache_line->state = MESIState::I;
+                break;
+            }
+            break;
+
+        case MESIState::I:
+            break;
+
+        default:
+            std::runtime_error("invalid MESI state");
+            break;
         }
-        return MESIState::I;
+
+        return;
     }
 };

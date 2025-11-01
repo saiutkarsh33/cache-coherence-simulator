@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <sys/stat.h>
 #include <vector>
+#include <charconv>
 #include "constants.hpp"
 #include "types.hpp"
 
@@ -19,30 +20,26 @@ inline bool file_exists(const std::string &path)
 
 // parse_auto_base helps to parse a hexadecimal string.
 // Accepts "1234", "0x4d2", etc.
-inline u64 parse_auto_base(const std::string &s)
+inline u64 parse_auto_base_sv(std::string_view s)
 {
-    try
+    u64 value = 0;
+
+    // Detect 0x prefix for hex
+    int base = 10;
+    if (s.size() > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
     {
-        size_t idx;
-        u64 v = std::stoull(s, &idx, 0);
-        if (idx != s.size())
-            throw std::invalid_argument("Trailing characters");
-        return v;
+        base = 16;
+        s.remove_prefix(2);
     }
-    catch (const std::exception &e)
+
+    auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), value, base);
+    if (ec != std::errc{} || ptr != s.data() + s.size())
     {
-        std::cerr << "Invalid number '" << s << "': " << e.what() << '\n';
+        std::cerr << "Invalid number: " << s << "\n";
         std::exit(2);
     }
-}
 
-// decode_addr decodes an address and returns the [index, tag] as a pair.
-inline std::pair<int, u32> decode_address(u32 address, int block_bytes, int set_count)
-{
-    u32 line_addr = address / block_bytes;
-    int index = (int)(line_addr % set_count);
-    u32 tag = (u32)(line_addr / set_count);
-    return {index, tag};
+    return value;
 }
 
 // resolve_part1_trace_path resolves 1 input trace file (for part 1).
