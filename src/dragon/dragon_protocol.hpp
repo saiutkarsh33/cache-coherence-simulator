@@ -1,6 +1,7 @@
 #pragma once
 #include "../coherence_protocol.hpp"
 #include "../utils/stats.hpp"
+#include <ostream>
 
 class DragonProtocol : public CoherenceProtocol
 {
@@ -27,9 +28,8 @@ private:
 
     enum DragonBusTxn
     {
-        NoOp,
         BusRd,
-        BusUpd,
+        BusUpd, // BusUpd causes bus updates sent over the bus.
     };
 
 public:
@@ -52,26 +52,29 @@ public:
 
     bool on_processor_event(int processor_event, CacheLine *cache_line) override
     {
-        // Handle all cache miss process events here.
-        // Trigger bus rd broadcast to other cores if cache miss.
+        // Handle all cache miss process events here (this sets the default state).
+        // Trigger bus rd broadcast to other cores if cache miss, which should transfer N words from one core to another as cache missed.
         bool is_shared = false;
         switch (processor_event)
         {
         case DragonPrEvent::PrRdMiss:
-            // We handle adding idle cycles and bus traffic bytes outside this func (since cache miss).
-            is_shared = bus.trigger_bus_broadcast(curr_core, DragonBusTxn::BusRd, cache_line->addr);
+            is_shared = bus.trigger_bus_broadcast(curr_core, DragonBusTxn::BusRd, cache_line, block_bytes / WORD_BYTES);
             cache_line->state = is_shared ? DragonState::Sc : DragonState::E;
             break;
 
         case DragonPrEvent::PrWrMiss:
-            // We handle adding idle cycles and bus traffic bytes outside this func (since cache miss).
-            is_shared = bus.trigger_bus_broadcast(curr_core, DragonBusTxn::BusRd, cache_line->addr);
+            is_shared = bus.trigger_bus_broadcast(curr_core, DragonBusTxn::BusRd, cache_line, block_bytes / WORD_BYTES);
             cache_line->state = is_shared ? DragonState::Sm : DragonState::M;
             cache_line->dirty = true;
+
+            // Processor writes misses also trigger a bus update (sends a word from one cache to another).
+            is_shared = bus.trigger_bus_broadcast(curr_core, DragonBusTxn::BusUpd, cache_line, 1);
+            Stats::incr_bus_updates();
             break;
         }
 
         // Handle cache hit processor events here:
+        // Skip PrRd entirely as these do not affect the state.
         switch (cache_line->state)
         {
         case DragonState::E:
@@ -79,18 +82,19 @@ public:
             {
             case DragonPrEvent::PrWr:
                 cache_line->state = DragonState::M;
+                cache_line->dirty = true;
                 break;
             }
             break;
 
         case DragonState::Sc:
+            is_shared = true;
             switch (processor_event)
             {
             case DragonPrEvent::PrWr:
-                is_shared = bus.trigger_bus_broadcast(curr_core, DragonBusTxn::BusUpd, cache_line->addr);
+                // BusUpd sends a word from one cache to another.
+                is_shared = bus.trigger_bus_broadcast(curr_core, DragonBusTxn::BusUpd, cache_line, 1);
                 Stats::incr_bus_updates();
-                Stats::add_idle_cycles(curr_core, block_bytes * 2); // Sending a cache block with takes 2N.
-                Stats::add_bus_traffic_bytes(block_bytes);          // Assume that traffic is still sent even though it may be not shared.
                 cache_line->state = is_shared ? DragonState::Sm : DragonState::M;
                 cache_line->dirty = true;
                 break;
@@ -98,13 +102,13 @@ public:
             break;
 
         case DragonState::Sm:
+            is_shared = true;
             switch (processor_event)
             {
             case DragonPrEvent::PrWr:
-                is_shared = bus.trigger_bus_broadcast(curr_core, DragonBusTxn::BusUpd, cache_line->addr);
+                // BusUpd sends a word from one cache to another.
+                is_shared = bus.trigger_bus_broadcast(curr_core, DragonBusTxn::BusUpd, cache_line, 1);
                 Stats::incr_bus_updates();
-                Stats::add_idle_cycles(curr_core, block_bytes * 2); // Sending a cache block with takes 2N.
-                Stats::add_bus_traffic_bytes(block_bytes);          // Assume that traffic is still sent even though it may be not shared.
                 cache_line->state = is_shared ? DragonState::Sm : DragonState::M;
                 cache_line->dirty = true;
                 break;
@@ -115,7 +119,7 @@ public:
             break;
 
         default:
-            std::runtime_error("invalid Dragon state");
+            std::cerr << "Invalid Dragon state\n";
             break;
         }
 
@@ -125,39 +129,45 @@ public:
     void on_snoop_event(int bus_transaction, CacheLine *cache_line) override
     {
         // If invalid, no snoop processing required.
-        if (!cache_line->valid)
+        if (cache_line == nullptr || !cache_line->valid)
             return;
 
-        switch (bus_transaction)
+        switch (cache_line->state)
         {
-        case DragonBusTxn::BusRd:
-            switch (cache_line->state)
+        case DragonState::E:
+            switch (bus_transaction)
             {
-            case DragonState::E:
+            case DragonBusTxn::BusRd:
                 cache_line->state = DragonState::Sc;
                 break;
-            case DragonState::M:
-                // Flush that core (core to core transfer).
-                Stats::add_bus_traffic_bytes(block_bytes); // FIXME?
+            }
+            break;
+
+        case DragonState::Sc:
+            break;
+
+        case DragonState::Sm:
+            switch (bus_transaction)
+            {
+            case DragonBusTxn::BusUpd:
+                cache_line->state = DragonState::Sc;
+                cache_line->dirty = false; // Data flushed via cache-to-cache transfer.
+                break;
+            }
+            break;
+
+        case DragonState::M:
+            switch (bus_transaction)
+            {
+            case DragonBusTxn::BusRd:
                 cache_line->state = DragonState::Sm;
+                cache_line->dirty = false; // Data flushed via cache-to-cache transfer.
                 break;
             }
-            break;
-
-        case DragonBusTxn::BusUpd:
-            switch (cache_line->state)
-            {
-            case DragonState::Sm:
-                cache_line->state = DragonState::Sc;
-                break;
-            }
-            break;
-
-        case DragonBusTxn::NoOp:
             break;
 
         default:
-            std::runtime_error("invalid Dragon bus transaction");
+            std::cerr << "Invalid Dragon state\n";
             break;
         }
 

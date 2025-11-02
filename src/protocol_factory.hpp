@@ -18,7 +18,8 @@ std::unique_ptr<CoherenceProtocol> make_protocol(const std::string &name, int cu
     }
     else
     {
-        throw std::runtime_error("Unknown protocol: " + name);
+        std::cerr << "Unknown protocol" << name << "\n";
+        return nullptr;
     }
 }
 
@@ -26,5 +27,5 @@ std::unique_ptr<Cache> make_cache(const std::string &protocol_name,
                                   int cache_size, int assoc, int block_size, int curr_core, Bus &bus)
 {
     auto protocol = make_protocol(protocol_name, curr_core, block_size, bus);
-    return std::make_unique<Cache>(cache_size, assoc, block_size, protocol.release(), curr_core);
+    return std::make_unique<Cache>(cache_size, assoc, block_size, curr_core, protocol.release());
 }

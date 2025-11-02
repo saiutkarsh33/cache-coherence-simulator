@@ -27,10 +27,10 @@ class Stats
 private:
     std::vector<CoreStats> st;
 
-    u64 overall_exec = 0;
-    u64 overall_bus_total_data_bytes = 0;
-    u64 overall_bus_invalidations = 0;
-    u64 overall_bus_updates = 0;
+    u64 overall_exec = 0;                 // Total wall clock time elasped after running the simulation.
+    u64 overall_bus_total_data_bytes = 0; // Assume that we only count actual data being transferred (must have sharers).
+    u64 overall_bus_invalidations = 0;    // Count upon BusRdX sent on the bus, assume that invalidation counts even if no sharers.
+    u64 overall_bus_updates = 0;          // Count upon BusUpd sent on the bus, assume that update counts even if no sharers.
 
     int block_size = 0;
     int cache_size = 0;

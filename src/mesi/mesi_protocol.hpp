@@ -25,8 +25,7 @@ private:
 
     enum MESIBusTxn
     {
-        NoOp,
-        BusRdX,
+        BusRdX, // BusRdX causes bus invalidations sent over the bus.
         BusRd,
     };
 
@@ -38,11 +37,16 @@ public:
 
     int parse_processor_event(bool is_write, CacheLine *cache_line)
     {
+        (void)cache_line; // Unused parameter.
         return is_write ? MESIPrEvent::PrWr : MESIPrEvent::PrRd;
     }
 
     bool on_processor_event(int processor_event, CacheLine *cache_line) override
     {
+        // Set default state if invalid.
+        if (!cache_line->valid)
+            cache_line->state = MESIState::I;
+
         bool is_shared = false;
         switch (cache_line->state)
         {
@@ -63,7 +67,8 @@ public:
             switch (processor_event)
             {
             case MESIPrEvent::PrWr:
-                is_shared = bus.trigger_bus_broadcast(curr_core, MESIBusTxn::BusRdX, cache_line->addr);
+                is_shared = bus.trigger_bus_broadcast(curr_core, MESIBusTxn::BusRdX, cache_line, block_bytes / WORD_BYTES);
+                Stats::incr_bus_invalidations();
                 cache_line->state = MESIState::M;
                 cache_line->dirty = true;
                 break;
@@ -74,13 +79,12 @@ public:
             switch (processor_event)
             {
             case MESIPrEvent::PrRd:
-                // We handle adding idle cycles and bus traffic bytes outside this func (since cache miss).
-                is_shared = bus.trigger_bus_broadcast(curr_core, MESIBusTxn::BusRd, cache_line->addr);
+                is_shared = bus.trigger_bus_broadcast(curr_core, MESIBusTxn::BusRd, cache_line, block_bytes / WORD_BYTES);
                 cache_line->state = is_shared ? MESIState::S : MESIState::E;
                 break;
             case MESIPrEvent::PrWr:
-                // We handle adding idle cycles and bus traffic bytes outside this func (since cache miss).
-                is_shared = bus.trigger_bus_broadcast(curr_core, MESIBusTxn::BusRdX, cache_line->addr);
+                is_shared = bus.trigger_bus_broadcast(curr_core, MESIBusTxn::BusRdX, cache_line, block_bytes / WORD_BYTES);
+                Stats::incr_bus_invalidations();
                 cache_line->state = MESIState::M;
                 cache_line->dirty = true;
                 break;
@@ -88,7 +92,7 @@ public:
             break;
 
         default:
-            std::runtime_error("invalid MESI state");
+            std::cerr << "Invalid MESI state\n";
             break;
         }
 
@@ -97,22 +101,21 @@ public:
 
     void on_snoop_event(int bus_transaction, CacheLine *cache_line) override
     {
-        if (!cache_line->valid)
+        // If invalid, no snoop processing required.
+        if (cache_line == nullptr || !cache_line->valid)
             return;
 
         switch (cache_line->state)
         {
         case MESIState::M:
-            // Data flushed via cache-to-cache transfer.
             Stats::add_bus_traffic_bytes(block_bytes);
-            cache_line->dirty = false;
+            cache_line->dirty = false; // Data flushed via cache-to-cache transfer.
             switch (bus_transaction)
             {
             case MESIBusTxn::BusRd:
                 cache_line->state = MESIState::S;
                 break;
             case MESIBusTxn::BusRdX:
-                Stats::incr_bus_invalidations();
                 cache_line->valid = false;
                 cache_line->state = MESIState::I;
                 break;
@@ -126,7 +129,6 @@ public:
                 cache_line->state = MESIState::S;
                 break;
             case MESIBusTxn::BusRdX:
-                Stats::incr_bus_invalidations();
                 cache_line->valid = false;
                 cache_line->state = MESIState::I;
                 break;
@@ -140,7 +142,6 @@ public:
                 cache_line->state = MESIState::S;
                 break;
             case MESIBusTxn::BusRdX:
-                Stats::incr_bus_invalidations();
                 cache_line->valid = false;
                 cache_line->state = MESIState::I;
                 break;
@@ -151,7 +152,7 @@ public:
             break;
 
         default:
-            std::runtime_error("invalid MESI state");
+            std::cerr << "Invalid MESI state\n";
             break;
         }
 

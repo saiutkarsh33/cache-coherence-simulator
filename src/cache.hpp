@@ -79,8 +79,8 @@ private:
     }
 
 public:
-    Cache(int size_b, int assoc, int block_b, CoherenceProtocol *proto, int curr_core)
-        : size_bytes(size_b), block_bytes(block_b), assoc(assoc), protocol(proto), curr_core(curr_core)
+    Cache(int size_b, int assoc, int block_b, int curr_core, CoherenceProtocol *proto)
+        : size_bytes(size_b), block_bytes(block_b), assoc(assoc), curr_core(curr_core), protocol(proto)
     {
         assert(size_b > 0 && assoc > 0 && block_b > 0);
         assert((size_b % (assoc * block_b)) == 0);
@@ -99,9 +99,9 @@ public:
     void access_processor_cache(bool is_write, u32 addr)
     {
         auto [set_idx, tag] = decode_address(addr);
-        CacheLine *line = find_line(set_idx, tag);
+        CacheLine *cache_line = find_line(set_idx, tag);
 
-        if (line == nullptr)
+        if (cache_line == nullptr)
         {
             // Handle miss: need to allocate/evict.
             Stats::incr_miss(curr_core);
@@ -114,12 +114,15 @@ public:
                 Stats::add_bus_traffic_bytes(block_bytes); // Assume writing to main memory also writes to the bus traffic bytes.
             }
 
-            // We only fetch the from main memory block later (after processor event),
-            // if not already present in other caches (attempt core-to-core transfer first).
-            victim->tag = tag;     // Allocate line for the current address.
-            victim->valid = false; // To check valid flag within on_processor_event to determine if should fetch.
+            // Allocate the line for the current address.
+            // We will also need to update the victim's state, but this can only be done within the processor_event (since it is protocol specific).
+            // LRU is updated later upon completion of the entire processor event.
+            victim->tag = tag;
+            victim->addr = addr;
+            victim->valid = false; // To set valid flag only after fetch, attempting core to core transfer (only if have sharers) first.
             victim->dirty = false; // Reset dirty flag.
-            line = victim;
+
+            cache_line = victim;
         }
         else
         {
@@ -129,8 +132,8 @@ public:
         }
 
         // Run processor event:
-        int processor_event = protocol->parse_processor_event(is_write, line);
-        bool is_shared = protocol->on_processor_event(processor_event, line);
+        int processor_event = protocol->parse_processor_event(is_write, cache_line);
+        bool is_shared = protocol->on_processor_event(processor_event, cache_line);
         if (is_shared)
         {
             Stats::incr_shared_access(curr_core);
@@ -140,42 +143,35 @@ public:
             Stats::incr_private_access(curr_core);
         }
 
-        // Check if valid, else fetch the block.
-        if (!line->valid)
+        if (!cache_line->valid && !is_shared)
         {
-            if (is_shared)
-            {
-                // Core to core transfer.
-                Stats::add_idle_cycles(curr_core, 2 * block_bytes); // Sending a cache block with takes 2N.
-                Stats::add_bus_traffic_bytes(block_bytes);
-            }
-            else
-            {
-                // Fetch from main memory.
-                Stats::add_idle_cycles(curr_core, CYCLE_MEM_BLOCK_FETCH);
-                Stats::add_bus_traffic_bytes(block_bytes); // Assume reading from main memory also adds bus traffic.
-            }
-            line->valid = true;
+            // Must fetch from main memory if not shared.
+            Stats::add_idle_cycles(curr_core, CYCLE_MEM_BLOCK_FETCH);
+            Stats::add_bus_traffic_bytes(block_bytes); // Assume reading from main memory also adds bus traffic.
+            cache_line->valid = true;
         }
 
+        assert(cache_line->valid);
+
         // Assume that LRU time is updated on completion of the processor event.
-        line->lru = Stats::get_exec_cycles(curr_core);
+        cache_line->lru = Stats::get_exec_cycles(curr_core);
 
         return;
     }
 
     // Handle snoop bus transactions.
-    // Returns true if shared.
+    // Returns true if shared (has valid cache line).
     bool trigger_snoop_event(int bus_transaction, u32 addr)
     {
         auto [set_idx, tag] = decode_address(addr);
         CacheLine *line = find_line(set_idx, tag);
+
+        // If invalid, no snoop processing required.
         if (line == nullptr || !line->valid)
             return false;
 
         protocol->on_snoop_event(bus_transaction, line);
 
-        // The line can be invalidated after snooping.
-        return line->valid;
+        return true;
     }
 };

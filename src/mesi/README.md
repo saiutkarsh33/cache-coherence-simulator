@@ -66,9 +66,9 @@ ln -s ../../tests/benchmark_traces ./tests/benchmark_traces
 ```bash
 # Run 3 benchmarks to JSON (adjust paths if needed)
 mkdir -p out
-./coherence MESI ../tests/benchmark_traces/bodytrack_0.data      4096 2 32 --json > ./tests/out/bodytrack.json
-./coherence MESI ../tests/benchmark_traces/blackscholes_0.data   4096 2 32 --json > ./tests/out/blackscholes.json
-./coherence MESI ../tests/benchmark_traces/fluidanimate_0.data   4096 2 32 --json > ./tests/out/fluidanimate.json
+./coherence MESI ../../tests/benchmark_traces/bodytrack_0.data      4096 2 32 --json > ./tests/out/bodytrack.json
+./coherence MESI ../../tests/benchmark_traces/blackscholes_0.data   4096 2 32 --json > ./tests/out/blackscholes.json
+./coherence MESI ../../tests/benchmark_traces/fluidanimate_0.data   4096 2 32 --json > ./tests/out/fluidanimate.json
 ```
 
 ## 6) Common error & fix

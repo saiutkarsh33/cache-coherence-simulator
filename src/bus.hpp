@@ -4,16 +4,6 @@
 #include "utils/types.hpp"
 #include "cache.hpp"
 
-// BusTxn represents a bus transaction.
-struct BusTxn
-{
-    u32 addr = 0;
-    int bus_op = 0; // 0 should represent a no op.
-    int src_core = -1;
-    int data_bytes = 0; // block bytes for reads/writes; 4 bytes for BusUpd; 0 for BusUpgr
-    int duration = 0;   // cycles: mem=100, c2c=2N, upd=2, upgr=1
-};
-
 // Bus uses FCFS arbitration policy.
 // Broadcasts transactions, coordinate responses.
 //
@@ -22,47 +12,54 @@ struct BusTxn
 class Bus
 {
 private:
-    u64 free_at = 0;
-    u64 total_data_bytes = 0;
-    u64 invalidation_or_update_broadcasts = 0;
+    u64 free_at = 0; // Indicates until when the bus is busy.
 
-    // Store reference to the caches.
+    // Store reference to the caches for the broadcast.
     std::vector<std::unique_ptr<Cache>> &caches;
+
+    // Returns finish time after scheduling in FCFS ordering.
+    // Requests are serviced in the order in which they arrive.
+    u64 request_bus(u64 earliest, u64 duration_cycles)
+    {
+        u64 start = std::max(earliest, free_at);
+        u64 end = start + duration_cycles;
+        free_at = end;
+        return end;
+    }
 
 public:
     Bus(std::vector<std::unique_ptr<Cache>> &caches) : caches(caches) {};
 
-    // FCFS schedule; returns finish time
-    u64 schedule(u64 earliest, const BusTxn &t)
-    {
-        u64 start = std::max(earliest, free_at);
-        u64 end = start + (t.duration > 0 ? (u64)t.duration : 0ull);
-        free_at = end;
-        total_data_bytes += (u64)t.data_bytes;
-
-        // TODO: Count invalidations or updates on the bus
-        // if (t.op == BusOp::BusUpgr || t.op == BusOp::BusRdX || t.op == BusOp::BusUpd)
-        // {
-        //     invalidation_or_update_broadcasts++;
-        // }
-
-        return end;
-    }
-
-    // Handle bus broadcasts.
+    // Handle bus broadcasts and adds to the bus traffic bytes and curr_core's idle cycles.
+    //
     // Returns true if the cache line is shared.
-    bool trigger_bus_broadcast(int curr_core, int bus_transaction_event, u32 addr)
+    bool trigger_bus_broadcast(int curr_core, int bus_transaction_event, CacheLine *cache_line, int bus_traffic_words)
     {
-        if (bus_transaction_event == 0) // Skip if No op.
-            return false;
+        int curr_time = Stats::get_exec_cycles(curr_core);
+        int ready_time = request_bus(curr_time, 0);
+        // Must wait until the bus is available since only one transaction can occupy it at a time.
+        Stats::add_idle_cycles(curr_core, ready_time - curr_time);
 
         bool is_shared = false;
         for (int k = 0; k < NUM_OF_CORES; k++)
         {
             if (k != curr_core)
             {
-                is_shared |= caches[k]->trigger_snoop_event(bus_transaction_event, addr);
+                is_shared = is_shared || caches[k]->trigger_snoop_event(bus_transaction_event, cache_line->addr);
             }
+        }
+
+        if (is_shared)
+        {
+            curr_time = Stats::get_exec_cycles(curr_core);
+            int transfer_cycles = bus_traffic_words * 2; // Sending a cache block with N words takes 2N cycles.
+            ready_time = request_bus(curr_time, transfer_cycles);
+
+            // Assume the that bus arbitration/broadcast happens instantaneously,
+            // only wait for data transfer which happens only when the cache line has sharers.
+            Stats::add_idle_cycles(curr_core, ready_time - curr_time);
+            Stats::add_bus_traffic_bytes(bus_traffic_words * WORD_BYTES);
+            cache_line->valid = true;
         }
 
         return is_shared;

@@ -49,7 +49,7 @@ static void simulate_single_core(const std::string &trace_path,
             std::cerr << "Bad label in trace: '" << lab_s << "'\n";
             std::exit(2);
         }
-        u64 val = parse_auto_base(val_s);
+        u64 val = parse_auto_base_sv(val_s);
 
         if (lab == 2)
         {

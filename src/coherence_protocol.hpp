@@ -17,6 +17,9 @@ public:
 
     // Handle processor-initiated access for the cache line.
     // Returns true if the cache line is shared, otherwise false.
+    //
+    // Abstract such that on_processor_event should not handle the valid bit,
+    // but should handle the dirty bit.
     virtual bool on_processor_event(int processor_event, CacheLine *cache_line) = 0;
 
     // Handle snoop events (bus transactions) from the bus,
