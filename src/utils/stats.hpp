@@ -18,6 +18,7 @@ struct CoreStats
     u64 hits = 0;
     u64 misses = 0;
 
+    // We account for private and shared operations only after procotol state transitions complete.
     u64 private_accesses = 0;
     u64 shared_accesses = 0;
 };

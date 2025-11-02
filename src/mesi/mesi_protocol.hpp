@@ -64,6 +64,7 @@ public:
             break;
 
         case MESIState::S:
+            is_shared = true;
             switch (processor_event)
             {
             case MESIPrEvent::PrWr:
