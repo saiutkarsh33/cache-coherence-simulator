@@ -15,11 +15,13 @@ Refer to the `src/mesi` folder for the instructions for building and running a M
 MOESI is an optimization of MESI that adds an "Owned" (O) state. The key improvement is that when a cache with modified data receives a read request from another core, it can transition to the Owned state and share the data **WITHOUT writing back to memory**, reducing bus traffic and latency.
 
 **Benefits:**
+
 - 10-30% reduction in bus traffic for sharing-intensive workloads
 - 5-15% reduction in execution cycles for producer-consumer patterns
 - Used in AMD Opteron and ARM Cortex-A processors
 
 **Literature:**
+
 - Sweazey & Smith (1986), "A class of compatible cache consistency protocols and their support by the IEEE futurebus", ISCA
 
 ## Design Architecture
@@ -28,12 +30,14 @@ The simulator uses a modular design with protocol-specific implementations:
 
 ```
 src/
-├── mesi/           # MESI protocol implementation
-├── moesi/          # MOESI protocol implementation (optimization)
-├── dragon/         # Dragon protocol implementation
-├── cache.hpp       # Cache structure and access logic
-├── bus.hpp         # Bus arbitration and transactions
-└── protocol_factory.hpp  # Protocol selection
+├── mesi/mesi_protocol.hpp            # MESI protocol implementation
+├── moesi/moesi_protocol.hpp          # MOESI protocol implementation (optimization)
+├── dragon/dragon_protocol.hpp        # Dragon protocol implementation
+├── cache.hpp                         # Cache structure and access logic (protocol independent)
+├── bus.hpp                           # Bus arbitration and transactions
+├── protocol_factory.hpp              # Protocol selection
+├── cache_sim.hpp                     # Cache simulator
+└── main.cpp                          # Entry point into cache simulator
 ```
 
 ## Setup
@@ -120,12 +124,12 @@ Running the cache coherence simulator gives the following output:
 MOESI typically shows improvements in:
 
 | Metric                  | MESI (baseline) | MOESI (optimized) | Improvement |
-|-------------------------|-----------------|-------------------|-------------|
+| ----------------------- | --------------- | ----------------- | ----------- |
 | Bus Data Traffic        | Baseline        | 10-30% lower      | Better      |
 | Execution Cycles        | Baseline        | 5-15% lower       | Better      |
 | Producer-Consumer Tasks | Baseline        | Significant gain  | Better      |
 
-*Improvements vary by workload. Sharing-intensive workloads benefit most.*
+_Improvements vary by workload. Sharing-intensive workloads benefit most._
 
 ## Assumptions
 
@@ -136,17 +140,18 @@ MOESI typically shows improvements in:
 
 ## Protocol Comparison
 
-| Feature                    | MESI     | MOESI    | Dragon   |
-|----------------------------|----------|----------|----------|
-| States                     | 4        | 5        | 4        |
-| Sharing Modified Data      | Writeback| No WB ✓  | Update   |
-| Bus Traffic (Sharing)      | High     | Low ✓    | High     |
-| Invalidation vs Update     | Invalid  | Invalid  | Update   |
-| Production Use             | Common   | AMD, ARM | Rare     |
+| Feature                | MESI      | MOESI    | Dragon |
+| ---------------------- | --------- | -------- | ------ |
+| States                 | 4         | 5        | 4      |
+| Sharing Modified Data  | Writeback | No WB ✓  | Update |
+| Bus Traffic (Sharing)  | High      | Low ✓    | High   |
+| Invalidation vs Update | Invalid   | Invalid  | Update |
+| Production Use         | Common    | AMD, ARM | Rare   |
 
 ## References
 
 For more details on MOESI optimization, see:
+
 - `docs/MOESI_EVALUATION.md` - Detailed performance analysis
 - `docs/MOESI_README.md` - Implementation guide
 - Sweazey & Smith (1986), "A class of compatible cache consistency protocols", ISCA
