@@ -3,7 +3,7 @@
 // CLI
 //   ./coherence <protocol> <input_base_or_any_0.data> <cache_size> <associativity> <block_size> [--json]
 //
-// <protocol> can be either "MESI" or "DRAGON".
+// <protocol> can be "MESI", "MOESI", or "Dragon".
 //
 // If <input> ends with "_0.data", we auto-resolve _1/_2/_3 in the same folder.
 // If it's a base name with no underscore (e.g., "bodytrack"), we try ./tests/benchmark_traces/bodytrack_0..3.data.
@@ -21,11 +21,11 @@ int main(int argc, char *argv[])
     if (argc < 3)
     {
         std::cerr << "Usage: " << argv[0]
-                  << " <protocol: MESI|Dragon> <input_base_or_any_0.data> [<cache_size> <associativity> <block_size>] [--json]\n";
+                  << " <protocol: MESI|MOESI|Dragon> <input_base_or_any_0.data> [<cache_size> <associativity> <block_size>] [--json]\n";
         return 2;
     }
 
-    // Parse protocol: accepted: MESI/Dragon.
+    // Parse protocol: accepted: MESI/MOESI/Dragon.
     std::string protocol = argv[1];
 
     // Parse file inputs.

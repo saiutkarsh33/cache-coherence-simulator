@@ -4,6 +4,7 @@
 #include "coherence_protocol.hpp"
 #include "mesi/mesi_protocol.hpp"
 #include "dragon/dragon_protocol.hpp"
+#include "moesi/moesi_protocol.hpp"
 #include "cache.hpp"
 
 std::unique_ptr<CoherenceProtocol> make_protocol(const std::string &name, int curr_core, int block_size, Bus &bus)
@@ -16,9 +17,13 @@ std::unique_ptr<CoherenceProtocol> make_protocol(const std::string &name, int cu
     {
         return std::make_unique<DragonProtocol>(curr_core, block_size, bus);
     }
+    else if (name == "MOESI")
+    {
+        return std::make_unique<MOESIProtocol>(curr_core, block_size, bus);
+    }
     else
     {
-        std::cerr << "Unknown protocol" << name << "\n";
+        std::cerr << "Unknown protocol: " << name << "\n";
         return nullptr;
     }
 }
