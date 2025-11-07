@@ -133,16 +133,30 @@ _Improvements vary by workload. Sharing-intensive workloads benefit most._
 
 ## Assumptions
 
-- When deciding which core to pick for bus transactions, ties are broken by picking the smaller core number.
+Processor events:
+
+- When deciding which core to pick for processor events at the same time, ties are broken by picking the smaller core number.
+
+Bus:
+
 - Bus transactions occur one at a time; we wait if the bus is busy until it is the core's turn to broadcast the bus transaction.
 - Bus snooping happens instantaneously for other cores, so we only wait until the bus is available.
 - Bus invalidations/updates are only counted once per broadcast (doesn't depend on the number of cores which have a valid cache line).
-- Perform core-to-core data transfers if possible (cache line sharers exist), only reading from main memory if no sharers.
+
+Cache-to-cache data transfers:
+
+- Perform cache-to-cache data transfers if possible (cache line sharers exist), only reading from main memory if no sharers.
+- Bus data traffic and idle time waiting for other caches is counted only when cache-to-cache data transfers happen across the bus (i.e. cache line sharers exist).
+
+Statistics:
+
 - LRU time of a cache line is based on when a processor load/store is completed (instead of when it begins).
-- Bus data traffic and idle time waiting for other caches is counted only when core-to-core data transfers happen across the bus (i.e. cache line sharers exist).
-- Private and shared data accesses are counted only after protocol state transitions.
-- MOESI's Owned state maintains dirty data that can be shared without memory writeback.
+- Shared data accesses are counted when a cache-to-cache data transfer happens (cache line sharers exists), OR if the cache line is in a shared state after the processor event. (i.e. exclusive processor writes can have shared data accesses if their cache line is invalid/not owned and is able to read from another core.) Otherwise it is treated as a private data access.
 - Cache-to-cache transfers take 2N cycles (N = words per block); memory access takes 100 cycles.
+
+Protocol specific:
+
+- MOESI's Owned state maintains dirty data that can be shared without memory writeback.
 
 ## Protocol Comparison
 
