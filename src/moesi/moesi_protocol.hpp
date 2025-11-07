@@ -3,7 +3,7 @@
 #include "../utils/stats.hpp"
 
 // MOESI Protocol: Optimization of MESI with "Owned" state
-// 
+//
 // Key Optimization: The Owned (O) state allows a cache to share dirty data
 // with other caches WITHOUT writing back to memory first.
 //
@@ -32,11 +32,11 @@ private:
 
     enum MOESIState
     {
-        M,  // Modified (exclusive, dirty)
-        O,  // Owned (shared, dirty) - THE OPTIMIZATION!
-        E,  // Exclusive (exclusive, clean)
-        S,  // Shared (shared, clean)
-        I,  // Invalid
+        M, // Modified (exclusive, dirty)
+        O, // Owned (shared, dirty) - THE OPTIMIZATION!
+        E, // Exclusive (exclusive, clean)
+        S, // Shared (shared, clean)
+        I, // Invalid
     };
 
     enum MOESIPrEvent
@@ -70,7 +70,7 @@ public:
             cache_line->state = MOESIState::I;
 
         bool is_shared = false;
-        
+
         switch (cache_line->state)
         {
         case MOESIState::M:
@@ -84,11 +84,10 @@ public:
             {
             case MOESIPrEvent::PrWr:
                 // Need to invalidate other sharers
-                bus.trigger_bus_broadcast(curr_core, MOESIBusTxn::BusRdX, cache_line, block_bytes / WORD_BYTES);
+                is_shared = bus.trigger_bus_broadcast(curr_core, MOESIBusTxn::BusRdX, cache_line, block_bytes / WORD_BYTES);
                 Stats::incr_bus_invalidations();
                 cache_line->state = MOESIState::M;
                 cache_line->dirty = true;
-                is_shared = false; // now exclusive
                 break;
             }
             break;
@@ -112,11 +111,10 @@ public:
             {
             case MOESIPrEvent::PrWr:
                 // Need to invalidate other sharers
-                bus.trigger_bus_broadcast(curr_core, MOESIBusTxn::BusRdX, cache_line, block_bytes / WORD_BYTES);
+                is_shared = bus.trigger_bus_broadcast(curr_core, MOESIBusTxn::BusRdX, cache_line, block_bytes / WORD_BYTES);
                 Stats::incr_bus_invalidations();
                 cache_line->state = MOESIState::M;
                 cache_line->dirty = true;
-                is_shared = false; // now exclusive
                 break;
             }
             break;
