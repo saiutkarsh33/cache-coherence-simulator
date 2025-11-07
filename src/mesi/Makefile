@@ -3,7 +3,7 @@ CXXFLAGS := -O2 -std=c++17 -Wall -Wextra -pedantic
 
 all: coherence
 
-coherence: main.cpp mesi_bus.hpp mesi_cache.hpp mesi_sim.hpp
+coherence: main.cpp ../bus.hpp mesi_sim.hpp mesi_protocol.hpp
 	$(CXX) $(CXXFLAGS) -o $@ main.cpp
 
 clean:

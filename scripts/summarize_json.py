@@ -11,7 +11,7 @@ def load(path):
 
 
 def main():
-    folder = sys.argv[1] if len(sys.argv) > 1 else "./out"
+    folder = sys.argv[1] if len(sys.argv) > 1 else "./tests/out"
     files = sorted(glob.glob(os.path.join(folder, "*.json")))
     if not files:
         print(f"No JSON files in {folder}")

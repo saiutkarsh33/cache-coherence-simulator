@@ -1,10 +1,8 @@
-#ifndef CACHE_CPP
-#define CACHE_CPP
-
+#pragma once
 #include <vector>
 #include <iostream>
-#include "types.hpp"
-#include "constants.hpp"
+#include "../utils/types.hpp"
+#include "../utils/constants.hpp"
 
 // For Part 1 (single-core), bus address-only timing has no effect on concurrency, so we do not model it.
 // We only count DATA bytes on the bus per the spec (no address bytes).
@@ -201,5 +199,3 @@ private:
     u64 shared_accesses_;
     u64 writebacks_;
 };
-
-#endif

@@ -1,0 +1,107 @@
+// utils.hpp contain useful functions for parsing the input file.
+#pragma once
+#include <string>
+#include <iostream>
+#include <algorithm>
+#include <cstdlib>
+#include <sys/stat.h>
+#include <vector>
+#include <charconv>
+#include "constants.hpp"
+#include "types.hpp"
+
+// file_exists checks if a file with the path exists.
+inline bool file_exists(const std::string &path)
+{
+    struct stat sb{};
+    // I_ISREG checks if the mode indicates a regular file.
+    return ::stat(path.c_str(), &sb) == 0 && S_ISREG(sb.st_mode);
+}
+
+// parse_auto_base helps to parse a hexadecimal string.
+// Accepts "1234", "0x4d2", etc.
+inline u64 parse_auto_base_sv(std::string_view s)
+{
+    u64 value = 0;
+
+    // Detect 0x prefix for hex
+    int base = 10;
+    if (s.size() > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
+    {
+        base = 16;
+        s.remove_prefix(2);
+    }
+
+    auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), value, base);
+    if (ec != std::errc{} || ptr != s.data() + s.size())
+    {
+        std::cerr << "Invalid number: " << s << "\n";
+        std::exit(2);
+    }
+
+    return value;
+}
+
+// resolve_part1_trace_path resolves 1 input trace file (for part 1).
+inline std::string resolve_part1_trace_path(const std::string &input)
+{
+    if (file_exists(input))
+        return input;
+    std::string alt = DEFAULT_TRACES_PATH + input + "_0.data";
+    if (file_exists(alt))
+        return alt;
+    std::cerr << "Could not find trace file: '" << input << "' or '" << alt << "'\n";
+    std::exit(2);
+}
+
+// resolve_four resolves NUM_OF_CORES input trace files.
+static std::vector<std::string> resolve_four(const std::string &input)
+{
+    std::vector<std::string> v(NUM_OF_CORES);
+    // Case A: explicit _0.data
+    if (input.size() > 7 && input.rfind("_0.data") == input.size() - 7)
+    {
+        const auto base = input.substr(0, input.size() - 7);
+        for (int i = 0; i < NUM_OF_CORES; i++)
+        {
+            v[i] = base + "_" + std::to_string(i) + ".data";
+        }
+        for (auto &p : v)
+        {
+            if (!file_exists(p))
+            {
+                std::cerr << "Missing: " << p << "\n";
+                std::exit(2);
+            }
+        }
+        return v;
+    }
+
+    // Case B: bare base (e.g., "bodytrack") — try DEFAULT_TRACES_PATH then CWD
+    std::vector<std::string> tries(NUM_OF_CORES);
+    bool ok = true;
+    for (int i = 0; i < NUM_OF_CORES; i++)
+    {
+        tries[i] = DEFAULT_TRACES_PATH + input + "_" + std::to_string(i) + ".data",
+        ok = ok && file_exists(tries[i]);
+    }
+    if (ok)
+    {
+        return tries;
+    }
+
+    ok = true;
+    for (int i = 0; i < NUM_OF_CORES; i++)
+    {
+        tries[i] = input + "_" + std::to_string(i) + ".data",
+        ok = ok && file_exists(tries[i]);
+    }
+    if (ok)
+    {
+        return tries;
+    }
+
+    std::cerr << "Could not resolve " << NUM_OF_CORES << " trace files for base '" << input << "'.\n";
+    std::cerr << "Provide e.g.: ./coherence MESI " << DEFAULT_TRACES_PATH << "bodytrack_0.data 4096 2 32\n";
+    std::exit(2);
+}

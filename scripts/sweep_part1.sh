@@ -2,9 +2,9 @@
 set -euo pipefail
 
 BIN="./coherence" 
-TRACES="./traces"
+TRACES="./tests/benchmark_traces"
 PROTOCOL="MESI"
-OUTDIR="./out_sweep"
+OUTDIR="./tests/out_sweep"
 
 mkdir -p "$OUTDIR"
 shopt -s nullglob

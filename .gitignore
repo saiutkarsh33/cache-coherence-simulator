@@ -1,8 +1,5 @@
-/benchmarks/*.data
 coherence
-/traces/blackscholes_*
-/traces/bodytrack_*
-/traces/fluidanimate_*
-/out
-/out_sweep
+/tests/benchmark_traces
+/tests/out
+/tests/out_sweep
 .vscode
