@@ -24,6 +24,7 @@ for f in "$TRACES"/*_0.data; do
           echo "== $bm | PROTO=$proto CS=$cs A=$a B=$b =="
           if ! "$BIN" "$proto" "$f" "$cs" "$a" "$b" --json > "$out"; then
             echo "Error running $BIN for $bm ($proto, $cs, $a, $b)" >&2
+            rm -f "$out"
             continue
           fi
         done
