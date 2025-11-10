@@ -20,7 +20,7 @@ for f in "$TRACES"/*_0.data; do
     for cs in "${CACHE_SIZES[@]}"; do
       for a in "${ASSOCS[@]}"; do
         for b in "${BLOCKS[@]}"; do
-          out="$OUTDIR/${bm}_${proto}_${cs}_${a}_${b}.json"
+          out="$OUTDIR/${bm}_${cs}_${a}_${b}_${proto}.json"
           echo "== $bm | PROTO=$proto CS=$cs A=$a B=$b =="
           if ! "$BIN" "$proto" "$f" "$cs" "$a" "$b" --json > "$out"; then
             echo "Error running $BIN for $bm ($proto, $cs, $a, $b)" >&2
