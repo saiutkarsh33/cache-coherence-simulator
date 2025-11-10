@@ -23,6 +23,6 @@ run: coherence
 test: coherence
 	./scripts/run_tests.sh
 
-# Extensive testing.
+# Extensive benchmarking
 sweep: coherence
-	./scripts/sweep_part1.sh
+	./scripts/sweep.sh
