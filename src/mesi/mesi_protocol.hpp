@@ -66,7 +66,8 @@ public:
             switch (processor_event)
             {
             case MESIPrEvent::PrWr:
-                is_shared = bus.trigger_bus_broadcast(curr_core, MESIBusTxn::BusRdX, cache_line, block_bytes / WORD_BYTES);
+                // Purely invalidation requests do not contribute to bus traffic.
+                is_shared = bus.trigger_bus_broadcast(curr_core, MESIBusTxn::BusRdX, cache_line, 0);
                 Stats::incr_bus_invalidations();
                 cache_line->state = MESIState::M;
                 cache_line->dirty = true;

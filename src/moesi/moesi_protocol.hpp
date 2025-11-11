@@ -82,7 +82,8 @@ public:
             {
             case MOESIPrEvent::PrWr:
                 // Need to invalidate other sharers
-                is_shared = bus.trigger_bus_broadcast(curr_core, MOESIBusTxn::BusRdX, cache_line, block_bytes / WORD_BYTES);
+                // Purely invalidation requests do not contribute to bus traffic.
+                is_shared = bus.trigger_bus_broadcast(curr_core, MOESIBusTxn::BusRdX, cache_line, 0);
                 Stats::incr_bus_invalidations();
                 cache_line->state = MOESIState::M;
                 cache_line->dirty = true;
@@ -109,7 +110,8 @@ public:
             {
             case MOESIPrEvent::PrWr:
                 // Need to invalidate other sharers
-                is_shared = bus.trigger_bus_broadcast(curr_core, MOESIBusTxn::BusRdX, cache_line, block_bytes / WORD_BYTES);
+                // Purely invalidation requests do not contribute to bus traffic.
+                is_shared = bus.trigger_bus_broadcast(curr_core, MOESIBusTxn::BusRdX, cache_line, 0);
                 Stats::incr_bus_invalidations();
                 cache_line->state = MOESIState::M;
                 cache_line->dirty = true;
