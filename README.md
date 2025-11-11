@@ -34,7 +34,7 @@ src/
 ├── moesi/moesi_protocol.hpp          # MOESI protocol implementation (optimization)
 ├── dragon/dragon_protocol.hpp        # Dragon protocol implementation
 ├── cache.hpp                         # Cache structure and access logic (protocol independent)
-├── bus.hpp                           # Bus arbitration and transactions
+├── bus.hpp & bus.cpp                 # Bus arbitration and transactions
 ├── protocol_factory.hpp              # Protocol selection
 ├── cache_sim.hpp                     # Cache simulator
 └── main.cpp                          # Entry point into cache simulator
