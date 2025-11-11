@@ -1,0 +1,17 @@
+{
+  "overall_execution_cycles": 38686273,
+  "per_core_execution_cycles": [37186973,34266122,38686273,34052351],
+  "per_core_compute_cycles": [11337782,11290799,11337671,11301515],
+  "per_core_loads": [1832392,1821846,1838008,1832174],
+  "per_core_stores": [744111,585998,766181,579291],
+  "per_core_idle_cycles": [23423552,20700348,24904646,20471025],
+  "per_core_hits": [2425639,2274975,2443956,2279811],
+  "per_core_misses": [150864,132869,160233,131654],
+  "per_core_private_accesses": [2150061,1989748,2222612,2003182],
+  "per_core_shared_accesses": [426442,418096,381577,408283],
+  "bus_data_traffic_bytes": 29618848,
+  "bus_invalidations": 287170,
+  "bus_updates": 0,
+  "protocol": "MOESI",
+  "config": {"cache_size": 4096, "associativity": 2, "block_size": 32}
+}
