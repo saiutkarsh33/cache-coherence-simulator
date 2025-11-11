@@ -9,7 +9,7 @@ mkdir -p "$OUTDIR"
 shopt -s nullglob
 
 # Common fixed parameters
-PROTOCOLS=("MESI" "MOESI") # MESI | Dragon | MOESI
+PROTOCOLS=("MESI" "Dragon" "MOESI") # MESI | Dragon | MOESI
 FIXED_CACHE=4096
 FIXED_ASSOC=2
 FIXED_BLOCK=64

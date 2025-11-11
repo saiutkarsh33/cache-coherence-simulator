@@ -26,3 +26,4 @@ test: coherence
 # Extensive benchmarking
 sweep: coherence
 	./scripts/sweep.sh
+	./scripts/json_to_csv.sh
