@@ -7,7 +7,6 @@ class MESIProtocol : public CoherenceProtocol
 private:
     int curr_core;
     int block_bytes;
-    Bus &bus;
 
     enum MESIState
     {
@@ -30,10 +29,9 @@ private:
     };
 
 public:
-    MESIProtocol(int curr_core, int block_bytes, Bus &bus)
+    MESIProtocol(int curr_core, int block_bytes)
         : curr_core(curr_core),
-          block_bytes(block_bytes),
-          bus(bus) {};
+          block_bytes(block_bytes) {};
 
     int parse_processor_event(bool is_write, CacheLine *cache_line)
     {
@@ -41,7 +39,7 @@ public:
         return is_write ? MESIPrEvent::PrWr : MESIPrEvent::PrRd;
     }
 
-    bool on_processor_event(int processor_event, CacheLine *cache_line) override
+    bool on_processor_event(int processor_event, CacheLine *cache_line, Bus &bus) override
     {
         // Set default state if invalid.
         if (!cache_line->valid)
@@ -109,7 +107,6 @@ public:
         switch (cache_line->state)
         {
         case MESIState::M:
-            Stats::add_bus_traffic_bytes(block_bytes);
             cache_line->dirty = false; // Data flushed via cache-to-cache transfer.
             switch (bus_transaction)
             {
