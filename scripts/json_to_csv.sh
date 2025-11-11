@@ -5,15 +5,22 @@ OUTDIR="./tests/out_sweep"
 OUTFILE="results.csv"
 
 # Header line for CSV
-echo "Problem,Protocol,Cache Size,Associativity,Block Size,Overall Execution Cycles,Bus Data Traffic Bytes,Bus Invalidations,Bus Updates,Execution Cycles,Compute Cycles,Loads,Stores,Idle Cycles,Hits,Misses,Private Accesses,Shared Accesses" > "$OUTFILE"
+echo "Problem,Protocol,Sweep,Cache Size,Associativity,Block Size,Overall Execution Cycles,Bus Data Traffic Bytes,Bus Invalidations,Bus Updates,Execution Cycles,Compute Cycles,Loads,Stores,Idle Cycles,Hits,Misses,Private Accesses,Shared Accesses" > "$OUTFILE"
 
 for f in "$OUTDIR"/*.json; do
-  # Example filename: Dragon_blackscholes_4096_2_32.json
+  # Example filename: Dragon_blackscholes_4096_2_32_cache.json
   bn=$(basename "$f" .json)
-  IFS="_" read -r problem proto cs a b <<< "$bn"
+  IFS="_" read -r proto problem cs a b sweep <<< "$bn"
 
-  # Ensure jq is installed
-  jq -r --arg problem "$problem" --arg proto "$proto" --arg cs "$cs" --arg a "$a" --arg b "$b" '
+  # Handle malformed filenames
+  if [[ -z "$sweep" ]]; then
+    echo "Skipping malformed filename: $bn" >&2
+    continue
+  fi
+
+  # Extract metrics with jq
+  jq -r --arg problem "$problem" --arg proto "$proto" --arg sweep "$sweep" \
+        --arg cs "$cs" --arg a "$a" --arg b "$b" '
     def safe_avg(x):
       if (x | type) == "array" then (x | add / length)
       else x
@@ -22,6 +29,7 @@ for f in "$OUTDIR"/*.json; do
     [
       $problem,
       $proto,
+      $sweep,
       $cs,
       $a,
       $b,
