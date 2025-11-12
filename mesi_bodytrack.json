@@ -1,0 +1,17 @@
+{
+  "overall_execution_cycles": 37949827,
+  "per_core_execution_cycles": [37936785,37922219,18738190,37949827],
+  "per_core_compute_cycles": [17729254,17120545,17556877,17140113],
+  "per_core_loads": [2380720,2388005,74523,2416052],
+  "per_core_stores": [889412,899247,43175,908867],
+  "per_core_idle_cycles": [17121923,17698604,1071896,17669991],
+  "per_core_hits": [3085608,3103070,109417,3139723],
+  "per_core_misses": [184524,184182,8281,185196],
+  "per_core_private_accesses": [2306712,2299400,94181,2375356],
+  "per_core_shared_accesses": [963420,987852,23517,949563],
+  "bus_data_traffic_bytes": 20697376,
+  "bus_invalidations": 59600,
+  "bus_updates": 0,
+  "protocol": "MESI",
+  "config": {"cache_size": 4096, "associativity": 2, "block_size": 32}
+}

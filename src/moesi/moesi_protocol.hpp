@@ -3,7 +3,7 @@
 #include "../utils/stats.hpp"
 
 // MOESI Protocol: Optimization of MESI with "Owned" state
-//
+// 
 // Key Optimization: The Owned (O) state allows a cache to share dirty data
 // with other caches WITHOUT writing back to memory first.
 //
@@ -28,14 +28,15 @@ class MOESIProtocol : public CoherenceProtocol
 private:
     int curr_core;
     int block_bytes;
+    Bus &bus;
 
     enum MOESIState
     {
-        M, // Modified (exclusive, dirty)
-        O, // Owned (shared, dirty) - THE OPTIMIZATION!
-        E, // Exclusive (exclusive, clean)
-        S, // Shared (shared, clean)
-        I, // Invalid
+        M,  // Modified (exclusive, dirty)
+        O,  // Owned (shared, dirty) - THE OPTIMIZATION!
+        E,  // Exclusive (exclusive, clean)
+        S,  // Shared (shared, clean)
+        I,  // Invalid
     };
 
     enum MOESIPrEvent
@@ -51,9 +52,10 @@ private:
     };
 
 public:
-    MOESIProtocol(int curr_core, int block_bytes)
+    MOESIProtocol(int curr_core, int block_bytes, Bus &bus)
         : curr_core(curr_core),
-          block_bytes(block_bytes) {};
+          block_bytes(block_bytes),
+          bus(bus) {};
 
     int parse_processor_event(bool is_write, CacheLine *cache_line) override
     {
@@ -68,7 +70,7 @@ public:
             cache_line->state = MOESIState::I;
 
         bool is_shared = false;
-
+        
         switch (cache_line->state)
         {
         case MOESIState::M:
@@ -81,12 +83,12 @@ public:
             switch (processor_event)
             {
             case MOESIPrEvent::PrWr:
-                // Need to invalidate other sharers
-                // Purely invalidation requests do not contribute to bus traffic.
-                is_shared = bus.trigger_bus_broadcast(curr_core, MOESIBusTxn::BusRdX, cache_line, 0);
+                // Need to invalidate other sharers via BusRdX
+                is_shared = bus.trigger_bus_broadcast(curr_core, MOESIBusTxn::BusRdX, cache_line, NUM_OF_CORES);
                 Stats::incr_bus_invalidations();
                 cache_line->state = MOESIState::M;
                 cache_line->dirty = true;
+                is_shared = false; // now exclusive
                 break;
             }
             break;
@@ -109,12 +111,12 @@ public:
             switch (processor_event)
             {
             case MOESIPrEvent::PrWr:
-                // Need to invalidate other sharers
-                // Purely invalidation requests do not contribute to bus traffic.
-                is_shared = bus.trigger_bus_broadcast(curr_core, MOESIBusTxn::BusRdX, cache_line, 0);
+                // Need to invalidate other sharers via BusRdX
+                is_shared = bus.trigger_bus_broadcast(curr_core, MOESIBusTxn::BusRdX, cache_line, NUM_OF_CORES);
                 Stats::incr_bus_invalidations();
                 cache_line->state = MOESIState::M;
                 cache_line->dirty = true;
+                is_shared = false; // now exclusive
                 break;
             }
             break;
@@ -124,11 +126,13 @@ public:
             switch (processor_event)
             {
             case MOESIPrEvent::PrRd:
-                is_shared = bus.trigger_bus_broadcast(curr_core, MOESIBusTxn::BusRd, cache_line, block_bytes / WORD_BYTES);
+                // Broadcast BusRd to get shared or exclusive copy
+                is_shared = bus.trigger_bus_broadcast(curr_core, MOESIBusTxn::BusRd, cache_line, NUM_OF_CORES);
                 cache_line->state = is_shared ? MOESIState::S : MOESIState::E;
                 break;
             case MOESIPrEvent::PrWr:
-                is_shared = bus.trigger_bus_broadcast(curr_core, MOESIBusTxn::BusRdX, cache_line, block_bytes / WORD_BYTES);
+                // Broadcast BusRdX to get exclusive copy
+                is_shared = bus.trigger_bus_broadcast(curr_core, MOESIBusTxn::BusRdX, cache_line, NUM_OF_CORES);
                 Stats::incr_bus_invalidations();
                 cache_line->state = MOESIState::M;
                 cache_line->dirty = true;
@@ -153,20 +157,21 @@ public:
         switch (cache_line->state)
         {
         case MOESIState::M:
-            // OPTIMIZATION: M->O transition on BusRd (no writeback!)
-            // Supply data via cache-to-cache transfer
             switch (bus_transaction)
             {
             case MOESIBusTxn::BusRd:
-                // KEY OPTIMIZATION: Transition to Owned instead of writing back!
-                // Data remains dirty but can be shared
+                // KEY OPTIMIZATION: M->O transition WITHOUT writeback!
+                // The Owned state means this cache still has dirty data
+                // but shares it with other caches via cache-to-cache transfer.
+                // Memory is NOT updated - significant bus traffic savings!
                 cache_line->state = MOESIState::O;
                 // dirty flag stays true - still responsible for eventual writeback
                 break;
             case MOESIBusTxn::BusRdX:
                 // Another core wants exclusive access - invalidate
+                // Supply data via cache-to-cache transfer, then invalidate
                 cache_line->valid = false;
-                cache_line->dirty = false; // data transferred
+                cache_line->dirty = false; // data transferred to requesting cache
                 cache_line->state = MOESIState::I;
                 break;
             }
@@ -177,7 +182,7 @@ public:
             switch (bus_transaction)
             {
             case MOESIBusTxn::BusRd:
-                // Stay in Owned, supply data
+                // Stay in Owned, supply data to new sharer
                 cache_line->state = MOESIState::O;
                 break;
             case MOESIBusTxn::BusRdX:
@@ -194,7 +199,7 @@ public:
             switch (bus_transaction)
             {
             case MOESIBusTxn::BusRd:
-                // Downgrade to Shared
+                // Downgrade to Shared (data is clean, no ownership needed)
                 cache_line->state = MOESIState::S;
                 break;
             case MOESIBusTxn::BusRdX:
