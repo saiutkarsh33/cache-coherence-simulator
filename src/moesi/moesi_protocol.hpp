@@ -28,7 +28,6 @@ class MOESIProtocol : public CoherenceProtocol
 private:
     int curr_core;
     int block_bytes;
-    Bus &bus;
 
     enum MOESIState
     {
@@ -52,10 +51,9 @@ private:
     };
 
 public:
-    MOESIProtocol(int curr_core, int block_bytes, Bus &bus)
+    MOESIProtocol(int curr_core, int block_bytes)
         : curr_core(curr_core),
-          block_bytes(block_bytes),
-          bus(bus) {};
+          block_bytes(block_bytes) {};
 
     int parse_processor_event(bool is_write, CacheLine *cache_line) override
     {
