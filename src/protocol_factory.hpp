@@ -1,24 +1,31 @@
 #pragma once
 #include <memory>
 #include <string>
+#include "utils/types.hpp"
+#include "cache.hpp"
+#include "bus.cpp"
 #include "coherence_protocol.hpp"
 #include "mesi/mesi_protocol.hpp"
 #include "dragon/dragon_protocol.hpp"
-#include "cache.hpp"
+#include "moesi/moesi_protocol.hpp"
 
-std::unique_ptr<CoherenceProtocol> make_protocol(const std::string &name, int curr_core, int block_size, Bus &bus)
+std::unique_ptr<CoherenceProtocol> make_protocol(const std::string &name, int curr_core, int block_size)
 {
     if (name == "MESI")
     {
-        return std::make_unique<MESIProtocol>(curr_core, block_size, bus);
+        return std::make_unique<MESIProtocol>(curr_core, block_size);
     }
     else if (name == "Dragon")
     {
-        return std::make_unique<DragonProtocol>(curr_core, block_size, bus);
+        return std::make_unique<DragonProtocol>(curr_core, block_size);
+    }
+    else if (name == "MOESI")
+    {
+        return std::make_unique<MOESIProtocol>(curr_core, block_size);
     }
     else
     {
-        std::cerr << "Unknown protocol" << name << "\n";
+        std::cerr << "Unknown protocol: " << name << "\n";
         return nullptr;
     }
 }
@@ -26,6 +33,6 @@ std::unique_ptr<CoherenceProtocol> make_protocol(const std::string &name, int cu
 std::unique_ptr<Cache> make_cache(const std::string &protocol_name,
                                   int cache_size, int assoc, int block_size, int curr_core, Bus &bus)
 {
-    auto protocol = make_protocol(protocol_name, curr_core, block_size, bus);
-    return std::make_unique<Cache>(cache_size, assoc, block_size, curr_core, protocol.release());
+    auto protocol = make_protocol(protocol_name, curr_core, block_size);
+    return std::make_unique<Cache>(cache_size, assoc, block_size, curr_core, bus, protocol.release());
 }

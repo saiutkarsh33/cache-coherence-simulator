@@ -18,7 +18,9 @@ struct CoreStats
     u64 hits = 0;
     u64 misses = 0;
 
-    // We account for private and shared operations only after procotol state transitions complete.
+    // We account for private and shared accesses,
+    // after checking if the cache line is shared,
+    // in our protocol processor event handling logic.
     u64 private_accesses = 0;
     u64 shared_accesses = 0;
 };
