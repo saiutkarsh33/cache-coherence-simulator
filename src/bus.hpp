@@ -1,67 +1,70 @@
 #pragma once
 #include <algorithm>
 #include <cstdint>
+#include <unordered_set>
 #include "utils/types.hpp"
-#include "cache.hpp"
+#include "utils/stats.hpp"
+
+// The forward declaration is necessary here due to a cyclic reference.
+class Cache;
 
 // Bus uses FCFS arbitration policy.
 // Broadcasts transactions, coordinate responses.
 //
 // Multiple processor attempt bus transactions simultaneously.
-// We assume only one transaction can take place on the bus at any time.
+// We assume that multiple bus transactions can take place simultaneously,
+// and that the bus is only locked during the first and last cycle,
+// for pipelining the bus transactions.
+// (only one core can broadcast/recieve in those cycles).
 class Bus
 {
 private:
-    u64 free_at = 0; // Indicates until when the bus is busy.
-
     // Store reference to the caches for the broadcast.
     std::vector<std::unique_ptr<Cache>> &caches;
 
-    // Returns finish time after scheduling in FCFS ordering.
+    int block_bytes; // Number of bytes for a block for caches using the bus.
+
+    // Indicates until when the bus is busy.
+    // Store the cycles at which the bus is exclusive (first and last cycles of a bus request).
+    std::unordered_set<u64> command_exclusive, data_exclusive;
+
+    // Returns end time after scheduling in FCFS ordering.
     // Requests are serviced in the order in which they arrive.
-    u64 request_bus(u64 earliest, u64 duration_cycles)
+    //
+    // We assume that the duration is extended if not able to acquire the
+    // data transfer exclusive lock (instead of stalling the start time to ensure a fixed duration).
+    //
+    // The request duration is at least one cycle for the exclusive command bus broadcast.
+    u64 request_bus(u64 earliest, u64 duration_cycles, bool has_data = false)
     {
-        u64 start = std::max(earliest, free_at);
-        u64 end = start + duration_cycles;
-        free_at = end;
-        return end;
+        // Find first free start cycle (to acquire a command broadcast lock)
+        u64 start_time = earliest;
+        while (command_exclusive.find(start_time) != command_exclusive.end())
+        {
+            start_time++;
+        }
+        command_exclusive.insert(start_time);
+
+        // Get first free end cycle.
+        // Assume that we should add command lock time of 1 cycle.
+        u64 end_time = start_time + duration_cycles + 1;
+        if (has_data)
+        {
+            // Assume that we should add data lock time of 1 cycle if data is transfered.
+            end_time++; // to acquire a data transfer lock
+            while (data_exclusive.find(end_time) != data_exclusive.end())
+            {
+                end_time++;
+            }
+            data_exclusive.insert(end_time);
+        }
+
+        return end_time;
     }
 
 public:
-    Bus(std::vector<std::unique_ptr<Cache>> &caches) : caches(caches) {};
-
-    // Handle bus broadcasts and adds to the bus traffic bytes and curr_core's idle cycles.
-    //
-    // Returns true if the cache line is shared.
-    bool trigger_bus_broadcast(int curr_core, int bus_transaction_event, CacheLine *cache_line, int bus_traffic_words)
-    {
-        int curr_time = Stats::get_exec_cycles(curr_core);
-        int ready_time = request_bus(curr_time, 0);
-        // Must wait until the bus is available since only one transaction can occupy it at a time.
-        Stats::add_idle_cycles(curr_core, ready_time - curr_time);
-
-        bool is_shared = false;
-        for (int k = 0; k < NUM_OF_CORES; k++)
-        {
-            if (k != curr_core)
-            {
-                is_shared = is_shared || caches[k]->trigger_snoop_event(bus_transaction_event, cache_line->addr);
-            }
-        }
-
-        if (is_shared)
-        {
-            curr_time = Stats::get_exec_cycles(curr_core);
-            int transfer_cycles = bus_traffic_words * 2; // Sending a cache block with N words takes 2N cycles.
-            ready_time = request_bus(curr_time, transfer_cycles);
-
-            // Assume the that bus arbitration/broadcast happens instantaneously,
-            // only wait for data transfer which happens only when the cache line has sharers.
-            Stats::add_idle_cycles(curr_core, ready_time - curr_time);
-            Stats::add_bus_traffic_bytes(bus_traffic_words * WORD_BYTES);
-            cache_line->valid = true;
-        }
-
-        return is_shared;
-    }
+    Bus(std::vector<std::unique_ptr<Cache>> &caches, int block_bytes)
+        : caches(caches), block_bytes(block_bytes) {}
+    bool trigger_bus_broadcast(int curr_core, int bus_transaction_event, CacheLine *cache_line, int num_cores);
+    void access_main_memory(int curr_core, u64 duration_cycles);
 };

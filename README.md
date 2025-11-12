@@ -15,11 +15,13 @@ Refer to the `src/mesi` folder for the instructions for building and running a M
 MOESI is an optimization of MESI that adds an "Owned" (O) state. The key improvement is that when a cache with modified data receives a read request from another core, it can transition to the Owned state and share the data **WITHOUT writing back to memory**, reducing bus traffic and latency.
 
 **Benefits:**
+
 - 10-30% reduction in bus traffic for sharing-intensive workloads
 - 5-15% reduction in execution cycles for producer-consumer patterns
 - Used in AMD Opteron and ARM Cortex-A processors
 
 **Literature:**
+
 - Sweazey & Smith (1986), "A class of compatible cache consistency protocols and their support by the IEEE futurebus", ISCA
 
 ## Design Architecture
@@ -28,12 +30,14 @@ The simulator uses a modular design with protocol-specific implementations:
 
 ```
 src/
-├── mesi/           # MESI protocol implementation
-├── moesi/          # MOESI protocol implementation (optimization)
-├── dragon/         # Dragon protocol implementation
-├── cache.hpp       # Cache structure and access logic
-├── bus.hpp         # Bus arbitration and transactions
-└── protocol_factory.hpp  # Protocol selection
+├── mesi/mesi_protocol.hpp            # MESI protocol implementation
+├── moesi/moesi_protocol.hpp          # MOESI protocol implementation (optimization)
+├── dragon/dragon_protocol.hpp        # Dragon protocol implementation
+├── cache.hpp                         # Cache structure and access logic (protocol independent)
+├── bus.hpp & bus.cpp                 # Bus arbitration and transactions
+├── protocol_factory.hpp              # Protocol selection
+├── cache_sim.hpp                     # Cache simulator
+└── main.cpp                          # Entry point into cache simulator
 ```
 
 ## Setup
@@ -120,33 +124,54 @@ Running the cache coherence simulator gives the following output:
 MOESI typically shows improvements in:
 
 | Metric                  | MESI (baseline) | MOESI (optimized) | Improvement |
-|-------------------------|-----------------|-------------------|-------------|
+| ----------------------- | --------------- | ----------------- | ----------- |
 | Bus Data Traffic        | Baseline        | 10-30% lower      | Better      |
 | Execution Cycles        | Baseline        | 5-15% lower       | Better      |
 | Producer-Consumer Tasks | Baseline        | Significant gain  | Better      |
 
-*Improvements vary by workload. Sharing-intensive workloads benefit most.*
+_Improvements vary by workload. Sharing-intensive workloads benefit most._
 
 ## Assumptions
 
-- When deciding which core to pick for bus transactions, ties are broken by picking the smaller core number.
+Processor events:
+
+- When deciding which core to pick for processor events at the same time, ties are broken by picking the smaller core number.
+
+Bus:
+
 - Bus transactions occur one at a time; we wait if the bus is busy until it is the core's turn to broadcast the bus transaction.
-- MOESI's Owned state maintains dirty data that can be shared without memory writeback.
+- Bus snooping happens instantaneously for other cores, so we only wait until the bus is available.
+- Bus invalidations/updates are only counted once per broadcast (doesn't depend on the number of cores which have a valid cache line).
+
+Cache-to-cache data transfers:
+
+- Perform cache-to-cache data transfers if possible (cache line sharers exist), only reading from main memory if no sharers.
+- Bus data traffic and idle time waiting for other caches is counted only when cache-to-cache data transfers happen across the bus (i.e. cache line sharers exist).
+
+Statistics:
+
+- LRU time of a cache line is based on when a processor load/store is completed (instead of when it begins).
+- Shared data accesses are counted when a cache-to-cache data transfer happens (cache line sharers exists), OR if the cache line is in a shared state after the processor event. (i.e. exclusive processor writes can have shared data accesses if their cache line is invalid/not owned and is able to read from another core.) Otherwise it is treated as a private data access.
 - Cache-to-cache transfers take 2N cycles (N = words per block); memory access takes 100 cycles.
+
+Protocol specific:
+
+- MOESI's Owned state maintains dirty data that can be shared without memory writeback.
 
 ## Protocol Comparison
 
-| Feature                    | MESI     | MOESI    | Dragon   |
-|----------------------------|----------|----------|----------|
-| States                     | 4        | 5        | 4        |
-| Sharing Modified Data      | Writeback| No WB ✓  | Update   |
-| Bus Traffic (Sharing)      | High     | Low ✓    | High     |
-| Invalidation vs Update     | Invalid  | Invalid  | Update   |
-| Production Use             | Common   | AMD, ARM | Rare     |
+| Feature                | MESI      | MOESI    | Dragon |
+| ---------------------- | --------- | -------- | ------ |
+| States                 | 4         | 5        | 4      |
+| Sharing Modified Data  | Writeback | No WB ✓  | Update |
+| Bus Traffic (Sharing)  | High      | Low ✓    | High   |
+| Invalidation vs Update | Invalid   | Invalid  | Update |
+| Production Use         | Common    | AMD, ARM | Rare   |
 
 ## References
 
 For more details on MOESI optimization, see:
+
 - `docs/MOESI_EVALUATION.md` - Detailed performance analysis
 - `docs/MOESI_README.md` - Implementation guide
 - Sweazey & Smith (1986), "A class of compatible cache consistency protocols", ISCA

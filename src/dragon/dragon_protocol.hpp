@@ -8,7 +8,6 @@ class DragonProtocol : public CoherenceProtocol
 private:
     int curr_core;
     int block_bytes;
-    Bus &bus;
 
     enum DragonState
     {
@@ -33,10 +32,9 @@ private:
     };
 
 public:
-    DragonProtocol(int curr_core, int block_bytes, Bus &bus)
+    DragonProtocol(int curr_core, int block_bytes)
         : curr_core(curr_core),
-          block_bytes(block_bytes),
-          bus(bus) {};
+          block_bytes(block_bytes) {};
 
     int parse_processor_event(bool is_write, CacheLine *cache_line) override
     {
@@ -50,7 +48,7 @@ public:
         }
     }
 
-    bool on_processor_event(int processor_event, CacheLine *cache_line) override
+    bool on_processor_event(int processor_event, CacheLine *cache_line, Bus &bus) override
     {
         // Handle all cache miss process events here (this sets the default state).
         // Trigger bus rd broadcast to other cores if cache miss, which should transfer N words from one core to another as cache missed.

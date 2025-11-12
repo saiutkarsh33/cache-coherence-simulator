@@ -3,3 +3,4 @@ coherence
 /tests/out
 /tests/out_sweep
 .vscode
+results.csv

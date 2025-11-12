@@ -1,6 +1,5 @@
 #pragma once
 #include <cstdint>
-#include "bus.hpp"
 #include "utils/types.hpp"
 
 // Abstract base class for coherence protocol implementations.
@@ -20,7 +19,7 @@ public:
     //
     // Abstract such that on_processor_event should not handle the valid bit,
     // but should handle the dirty bit.
-    virtual bool on_processor_event(int processor_event, CacheLine *cache_line) = 0;
+    virtual bool on_processor_event(int processor_event, CacheLine *cache_line, Bus &bus) = 0;
 
     // Handle snoop events (bus transactions) from the bus,
     // which originate from another core.

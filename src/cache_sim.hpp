@@ -3,7 +3,7 @@
 #include <string>
 #include <iostream>
 #include <memory>
-#include "bus.hpp"
+#include "bus.cpp"
 #include "cache.hpp"
 #include "protocol_factory.hpp"
 #include "utils/trace_item.hpp"
@@ -18,10 +18,10 @@ private:
     int words_per_block;
     int cache_size;
     int assoc;
+    Bus bus;
 
     std::vector<std::vector<TraceItem>> traces;
 
-    Bus bus;
     std::vector<std::unique_ptr<Cache>> caches;
     std::vector<size_t> cur_idx;
 
@@ -59,7 +59,7 @@ public:
           words_per_block(block_size / WORD_BYTES),
           cache_size(cache_size),
           assoc(assoc),
-          bus(caches)
+          bus(caches, block_size)
     {
         assert(block_bytes > 0 && (block_bytes % WORD_BYTES) == 0);
 

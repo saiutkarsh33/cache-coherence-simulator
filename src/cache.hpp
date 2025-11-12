@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <cassert>
+#include "bus.cpp"
 #include "coherence_protocol.hpp"
 #include "utils/types.hpp"
 #include "utils/constants.hpp"
@@ -16,6 +17,7 @@ private:
     int assoc;
     int num_sets;
     int curr_core;
+    Bus &bus;
 
     struct CacheSet
     {
@@ -79,8 +81,8 @@ private:
     }
 
 public:
-    Cache(int size_b, int assoc, int block_b, int curr_core, CoherenceProtocol *proto)
-        : size_bytes(size_b), block_bytes(block_b), assoc(assoc), curr_core(curr_core), protocol(proto)
+    Cache(int size_b, int assoc, int block_b, int curr_core, Bus &bus, CoherenceProtocol *proto)
+        : size_bytes(size_b), block_bytes(block_b), assoc(assoc), curr_core(curr_core), bus(bus), protocol(proto)
     {
         assert(size_b > 0 && assoc > 0 && block_b > 0);
         assert((size_b % (assoc * block_b)) == 0);
@@ -110,8 +112,7 @@ public:
             // Check if victim needs writeback
             if (victim->valid && victim->dirty)
             {
-                Stats::add_idle_cycles(curr_core, CYCLE_WRITEBACK_DIRTY);
-                Stats::add_bus_traffic_bytes(block_bytes); // Assume writing to main memory also writes to the bus traffic bytes.
+                bus.access_main_memory(curr_core, CYCLE_WRITEBACK_DIRTY);
             }
 
             // Allocate the line for the current address.
@@ -133,7 +134,7 @@ public:
 
         // Run processor event:
         int processor_event = protocol->parse_processor_event(is_write, cache_line);
-        bool is_shared = protocol->on_processor_event(processor_event, cache_line);
+        bool is_shared = protocol->on_processor_event(processor_event, cache_line, bus);
         if (is_shared)
         {
             Stats::incr_shared_access(curr_core);
@@ -146,8 +147,7 @@ public:
         if (!cache_line->valid && !is_shared)
         {
             // Must fetch from main memory if not shared.
-            Stats::add_idle_cycles(curr_core, CYCLE_MEM_BLOCK_FETCH);
-            Stats::add_bus_traffic_bytes(block_bytes); // Assume reading from main memory also adds bus traffic.
+            bus.access_main_memory(curr_core, CYCLE_MEM_BLOCK_FETCH);
             cache_line->valid = true;
         }
 
