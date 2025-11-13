@@ -139,7 +139,7 @@ Processor events:
 
 Bus:
 
-- Bus transactions occur one at a time; we wait if the bus is busy until it is the core's turn to broadcast the bus transaction.
+- Bus transactions are pipelined; we wait if the bus is busy but allow overlappig bus transactions (with a lock for initial broadcast and final data sync).
 - Bus snooping happens instantaneously for other cores, so we only wait until the bus is available.
 - Bus invalidations/updates are only counted once per broadcast (doesn't depend on the number of cores which have a valid cache line).
 
@@ -156,7 +156,7 @@ Statistics:
 
 Protocol specific:
 
-- MOESI's Owned state maintains dirty data that can be shared without memory writeback.
+- MOESI's Owned state maintains dirty data that can be shared without memory writeback unlike MESI.
 
 ## Protocol Comparison
 
@@ -167,11 +167,3 @@ Protocol specific:
 | Bus Traffic (Sharing)  | High      | Low ✓    | High   |
 | Invalidation vs Update | Invalid   | Invalid  | Update |
 | Production Use         | Common    | AMD, ARM | Rare   |
-
-## References
-
-For more details on MOESI optimization, see:
-
-- `docs/MOESI_EVALUATION.md` - Detailed performance analysis
-- `docs/MOESI_README.md` - Implementation guide
-- Sweazey & Smith (1986), "A class of compatible cache consistency protocols", ISCA
