@@ -134,7 +134,7 @@ public:
 
         // Run processor event:
         int processor_event = protocol->parse_processor_event(is_write, cache_line);
-        bool is_shared = protocol->on_processor_event(processor_event, cache_line, bus);
+        bool is_shared = protocol->on_processor_event(processor_event, cache_line);
         if (is_shared)
         {
             Stats::incr_shared_access(curr_core);

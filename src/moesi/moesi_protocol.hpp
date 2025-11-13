@@ -28,6 +28,7 @@ class MOESIProtocol : public CoherenceProtocol
 private:
     int curr_core;
     int block_bytes;
+    Bus &bus;
 
     enum MOESIState
     {
@@ -51,9 +52,10 @@ private:
     };
 
 public:
-    MOESIProtocol(int curr_core, int block_bytes)
+    MOESIProtocol(int curr_core, int block_bytes, Bus &bus)
         : curr_core(curr_core),
-          block_bytes(block_bytes) {};
+          block_bytes(block_bytes),
+          bus(bus) {};
 
     int parse_processor_event(bool is_write, CacheLine *cache_line) override
     {
@@ -61,7 +63,7 @@ public:
         return is_write ? MOESIPrEvent::PrWr : MOESIPrEvent::PrRd;
     }
 
-    bool on_processor_event(int processor_event, CacheLine *cache_line, Bus &bus) override
+    bool on_processor_event(int processor_event, CacheLine *cache_line) override
     {
         // Set default state if invalid
         if (!cache_line->valid)
@@ -187,7 +189,7 @@ public:
             case MOESIBusTxn::BusRdX:
                 // Another core wants exclusive access - invalidate
                 cache_line->valid = false;
-                cache_line->dirty = false; // data transferred
+                cache_line->dirty = false; // data transferred to requesting cache.
                 cache_line->state = MOESIState::I;
                 break;
             }
