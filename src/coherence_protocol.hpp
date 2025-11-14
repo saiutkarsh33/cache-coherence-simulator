@@ -19,13 +19,13 @@ public:
     //
     // Abstract such that on_processor_event should not handle the valid bit,
     // but should handle the dirty bit.
-    virtual bool on_processor_event(int processor_event, CacheLine *cache_line, Bus &bus) = 0;
+    virtual bool on_processor_event(int processor_event, CacheLine *cache_line) = 0;
 
     // Handle snoop events (bus transactions) from the bus,
     // which originate from another core.
     //
     // Assume that snoop hits on a modified line are served via cache-to-cache transfer,
-    // rather than immediately writing back to main memory.
+    // rather than immediately writing back to main memory (unless write-back is forced).
     //
     // Snooping transactions are non blocking, happen instantanesouly,
     // and do not advance exec time for the core.

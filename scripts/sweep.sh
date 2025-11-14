@@ -5,6 +5,9 @@ BIN="./coherence"
 TRACES="./tests/benchmark_traces"
 OUTDIR="./tests/out_sweep"
 
+# Clean the output folder
+rm -rf "$OUTDIR"/*
+
 mkdir -p "$OUTDIR"
 shopt -s nullglob
 
@@ -12,12 +15,12 @@ shopt -s nullglob
 PROTOCOLS=("MESI" "Dragon" "MOESI") # MESI | Dragon | MOESI
 FIXED_CACHE=4096
 FIXED_ASSOC=2
-FIXED_BLOCK=64
+FIXED_BLOCK=32
 
 # Sweep definitions
 CACHE_SIZES=(1024 2048 4096 8192 16384)
 ASSOCS=(1 2 4 8 16)
-BLOCKS=(16 32 64 128 256)
+BLOCKS=(4 8 16 32 64)
 
 run_sweep() {
   local var_name="$1"
